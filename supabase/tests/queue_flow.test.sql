@@ -313,11 +313,22 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
 do $$
 begin
   perform public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[(select v::uuid from ctx where k='h3')]);
-  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h1')) = 'played', 'previous batch playing → played';
-  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h2')) = 'played', 'previous batch queued → played';
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h1')) = 'played', 'previous playing song → played (one playing at a time)';
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h2')) = 'queued', 'sent songs stay in the queue (not finished)';
   assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h3')) = 'playing', 'new batch playing';
 end $$;
-select pg_temp.expect_error($q$select public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[(select v::uuid from ctx where k='h1')])$q$, 'INVALID_TRANSITION');
+do $$
+begin
+  -- whole ride playlist: played songs can be resent
+  perform public.driver_send_to_youtube((select v::uuid from ctx where k='ride'),
+    array[(select v::uuid from ctx where k='h1'), (select v::uuid from ctx where k='h2'), (select v::uuid from ctx where k='h3')]);
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h1')) = 'playing', 'resend whole playlist starts from first song';
+  -- driver can remove a played song
+  assert (public.driver_update_request((select v::uuid from ctx where k='h3'), 'remove')).status = 'removed', 'driver removes a played song';
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+select pg_temp.expect_error($q$select public.passenger_remove_request((select v::uuid from ctx where k='h1'))$q$, 'INVALID_TRANSITION');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
 select pg_temp.expect_error($q$select public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[]::uuid[])$q$, 'INVALID_TRANSITION');
 
 -- New drivers default to 10 songs per passenger

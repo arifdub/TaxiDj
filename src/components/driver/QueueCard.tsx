@@ -26,13 +26,19 @@ export function QueueCard({
   const player = usePlayer();
   const [open, setOpen] = useState(false);
   const pending = item.status === "pending";
+  const playing = item.status === "playing";
+  const played = item.status === "played";
+  const waiting = pending || item.status === "queued";
   const working = busy === item.id;
+  const playNow = () => {
+    if (!playing) act(item.id, "play");
+  };
 
   return (
     <li
       className={`rounded-3xl border bg-night-2 p-3 transition-colors ${
-        pending ? "border-amber-400/40" : "border-line"
-      } ${working ? "opacity-60" : ""}`}
+        pending ? "border-amber-400/40" : playing ? "border-go/50 bg-go/10" : "border-line"
+      } ${played ? "opacity-80" : ""} ${working ? "opacity-60" : ""}`}
     >
       <div className="flex items-center gap-3">
         <span className="w-6 text-center font-mono text-lg font-black text-mist" aria-label={`Position ${index + 1}`}>
@@ -51,8 +57,8 @@ export function QueueCard({
         </div>
         <PlayLink
           item={item}
-          onPlay={() => act(item.id, "play")}
-          aria-label={`Play ${item.title} now`}
+          onPlay={playNow}
+          aria-label={`Play ${item.title} ${played ? "again" : "now"}`}
           className="grid size-14 shrink-0 place-items-center rounded-full bg-taxi text-ink hover:bg-taxi-light"
         >
           <Play className="size-6 fill-current" aria-hidden />
@@ -70,13 +76,18 @@ export function QueueCard({
 
       {/* Open just this song in the YouTube Music / YouTube app (plays now). */}
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <OpenInApp item={item} target="youtube_music" onOpen={() => { player?.handOff(); act(item.id, "play"); }} />
-        <OpenInApp item={item} target="youtube" onOpen={() => { player?.handOff(); act(item.id, "play"); }} />
+        <OpenInApp item={item} target="youtube_music" onOpen={() => { player?.handOff(); playNow(); }} />
+        <OpenInApp item={item} target="youtube" onOpen={() => { player?.handOff(); playNow(); }} />
       </div>
-      {item.sent_to_youtube_at && (
-        <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-play">
-          <CircleCheck className="size-3.5" aria-hidden /> Sent to YouTube
-        </p>
+      {(playing || played || item.sent_to_youtube_at) && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {(playing || played) && <StatusBadge status={item.status} />}
+          {item.sent_to_youtube_at && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-play">
+              <CircleCheck className="size-3.5" aria-hidden /> Sent to YouTube
+            </span>
+          )}
+        </div>
       )}
 
       {pending && (
@@ -89,9 +100,16 @@ export function QueueCard({
       )}
 
       {open && (
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3">
-          <ActionButton onClick={() => act(item.id, "move_up")} icon={<ArrowUp />} label="Move up" disabled={isFirst || working} />
-          <ActionButton onClick={() => act(item.id, "move_down")} icon={<ArrowDown />} label="Move down" disabled={isLast || working} />
+        <div className={`mt-3 grid gap-2 border-t border-line pt-3 ${waiting ? "grid-cols-3" : "grid-cols-2"}`}>
+          {waiting && (
+            <>
+              <ActionButton onClick={() => act(item.id, "move_up")} icon={<ArrowUp />} label="Move up" disabled={isFirst || working} />
+              <ActionButton onClick={() => act(item.id, "move_down")} icon={<ArrowDown />} label="Move down" disabled={isLast || working} />
+            </>
+          )}
+          {playing && (
+            <ActionButton onClick={() => act(item.id, "finish")} icon={<CircleCheck />} label="Done" disabled={working} />
+          )}
           <ActionButton
             onClick={() => act(item.id, "remove")}
             icon={<Trash2 />}

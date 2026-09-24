@@ -26,6 +26,17 @@ export function PlayQueueInYouTube() {
   const unsent = all.filter((q) => !q.sent_to_youtube_at);
   const anySent = queue.some((q) => q.sent_to_youtube_at);
 
+  // Every song still in the ride's list (played songs stay until removed).
+  const rideSongs = queue
+    .filter((q) => q.status === "pending" || q.status === "queued" || q.status === "playing" || q.status === "played")
+    .sort((a, b) => a.position - b.position)
+    .slice(0, MAX_QUEUE_LINK_VIDEOS);
+  const hasPlayed = rideSongs.some((q) => q.status === "played");
+  const sendWhole = () => {
+    player?.handOff();
+    sendToYouTube(rideSongs.map((q) => q.id));
+  };
+
   const batch = (anySent ? unsent : all).slice(0, MAX_QUEUE_LINK_VIDEOS);
   const isUpdate = anySent && unsent.length > 0;
 
@@ -59,21 +70,26 @@ export function PlayQueueInYouTube() {
               sendToYouTube(batch.map((q) => q.id));
             }}
           />
+          {hasPlayed && (
+            <SendButtons
+              batch={rideSongs}
+              label={`Play whole ride playlist (${rideSongs.length}) in`}
+              subtle
+              onSend={sendWhole}
+            />
+          )}
         </>
-      ) : anySent && all.length > 0 ? (
+      ) : anySent && rideSongs.length > 0 ? (
         <>
           <p className="mt-2 flex items-center gap-2 text-sm font-bold text-go">
             <CircleCheck className="size-4" aria-hidden /> All songs are in YouTube. New requests will
             appear here to send.
           </p>
           <SendButtons
-            batch={all.slice(0, MAX_QUEUE_LINK_VIDEOS)}
-            label="Resend whole queue to"
+            batch={rideSongs}
+            label={`Play whole ride playlist (${rideSongs.length}) in`}
             subtle
-            onSend={() => {
-              player?.handOff();
-              sendToYouTube(all.slice(0, MAX_QUEUE_LINK_VIDEOS).map((q) => q.id));
-            }}
+            onSend={sendWhole}
           />
         </>
       ) : (
