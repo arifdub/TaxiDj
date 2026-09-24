@@ -243,6 +243,18 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Uncomment to customize email template
+# Taxi DJ: include the one-time code so drivers can sign in inside the
+# installed (Home Screen) app. Apply the same template in the dashboard for
+# hosted projects: Authentication → Email Templates → Magic Link.
+[auth.email.template.magic_link]
+subject = "Your Taxi DJ sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
+# First-time sign-ins get the "Confirm signup" email, so it needs the code too.
+[auth.email.template.confirmation]
+subject = "Your Taxi DJ sign-in code"
+content_path = "./supabase/templates/confirmation.html"
+
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
