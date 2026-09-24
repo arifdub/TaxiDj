@@ -61,6 +61,8 @@ export interface SongRequest {
   started_at: string | null;
   /** Who removed it, when status is 'removed'. */
   removed_by: "passenger" | "driver" | null;
+  /** When the driver handed this song to the YouTube / YouTube Music app. */
+  sent_to_youtube_at: string | null;
   created_at: string;
   updated_at: string;
 }

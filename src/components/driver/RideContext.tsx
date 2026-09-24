@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { endRide as apiEndRide, skip as apiSkip, updateRequest } from "@/lib/api";
+import { endRide as apiEndRide, sendToYouTube as apiSendToYouTube, skip as apiSkip, updateRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { useRide } from "@/hooks/useRide";
 import type { DriverRequestAction, Passenger, QueueItem, Ride } from "@/lib/types";
@@ -18,6 +18,8 @@ interface RideContextValue {
   act: (requestId: string, action: DriverRequestAction) => Promise<void>;
   skip: (direction: "next" | "previous") => Promise<void>;
   endRide: () => Promise<void>;
+  /** Hand songs to the YouTube app as one batch (see driver_send_to_youtube). */
+  sendToYouTube: (requestIds: string[]) => Promise<void>;
   confirmEnd: () => void;
 }
 
@@ -70,6 +72,7 @@ export function DriverRideProvider({
       act: (requestId, action) => run(requestId, () => updateRequest(requestId, action)),
       skip: (direction) => run("skip", () => apiSkip(ride.id, direction)),
       endRide: () => run("end", () => apiEndRide(ride.id)),
+      sendToYouTube: (ids) => run("send", () => apiSendToYouTube(ride.id, ids)),
       confirmEnd,
     }),
     [ride, queue, passengers, live, busy, error, run, confirmEnd],

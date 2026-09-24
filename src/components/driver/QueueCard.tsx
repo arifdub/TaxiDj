@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Ban, Check, Ellipsis, Play, Trash2, UserRound } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, CircleCheck, Ellipsis, ListVideo, Music2, Play, Trash2, UserRound } from "lucide-react";
 import { PlayLink } from "@/components/driver/PlayLink";
+import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { StatusBadge, Thumbnail } from "@/components/ui";
 import { formatDuration } from "@/lib/format";
-import type { QueueItem } from "@/lib/types";
+import type { QueueItem, RequestSource } from "@/lib/types";
+import { youTubeWatchUrl } from "@/lib/youtube/parse";
 
 /** One song in the driver's UP NEXT list, with play + management actions. */
 export function QueueCard({
@@ -21,6 +23,7 @@ export function QueueCard({
   isLast: boolean;
 }) {
   const { act, busy } = useDriverRide();
+  const player = usePlayer();
   const [open, setOpen] = useState(false);
   const pending = item.status === "pending";
   const working = busy === item.id;
@@ -65,6 +68,17 @@ export function QueueCard({
         </button>
       </div>
 
+      {/* Open just this song in the YouTube Music / YouTube app (plays now). */}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <OpenInApp item={item} target="youtube_music" onOpen={() => { player?.handOff(); act(item.id, "play"); }} />
+        <OpenInApp item={item} target="youtube" onOpen={() => { player?.handOff(); act(item.id, "play"); }} />
+      </div>
+      {item.sent_to_youtube_at && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-play">
+          <CircleCheck className="size-3.5" aria-hidden /> Sent to YouTube
+        </p>
+      )}
+
       {pending && (
         <div className="mt-3 flex items-center gap-2">
           <StatusBadge status="pending" />
@@ -88,6 +102,31 @@ export function QueueCard({
         </div>
       )}
     </li>
+  );
+}
+
+function OpenInApp({
+  item,
+  target,
+  onOpen,
+}: {
+  item: QueueItem;
+  target: RequestSource;
+  onOpen: () => void;
+}) {
+  const music = target === "youtube_music";
+  return (
+    <a
+      href={youTubeWatchUrl(item.youtube_video_id, target)}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onOpen}
+      aria-label={`Play ${item.title} in ${music ? "YouTube Music" : "YouTube"}`}
+      className="flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-play/40 bg-play/10 px-2 text-sm font-bold text-white hover:bg-play/20"
+    >
+      {music ? <Music2 className="size-4 text-play" aria-hidden /> : <ListVideo className="size-4 text-play" aria-hidden />}
+      {music ? "YouTube Music" : "YouTube"}
+    </a>
   );
 }
 

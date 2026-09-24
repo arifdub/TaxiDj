@@ -288,6 +288,38 @@ begin
   assert r.removed_by = 'driver', 'driver removal tagged';
 end $$;
 
+-- Hand-off to YouTube in batches ----------------------------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+select public.update_driver_settings('Arif''s Car', true, 20);
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+insert into ctx select 'h1', id::text from public.add_song_request((select v::uuid from ctx where k='ride'), 'OPf0YbXqDm0', 'Uptown Funk');
+insert into ctx select 'h2', id::text from public.add_song_request((select v::uuid from ctx where k='ride'), 'kJQP7kiw5Fk', 'Despacito');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
+select pg_temp.expect_error($q$select public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[(select v::uuid from ctx where k='h1')])$q$, 'RIDE_NOT_FOUND');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+do $$
+declare n int;
+begin
+  select count(*) into n from public.driver_send_to_youtube((select v::uuid from ctx where k='ride'),
+    array[(select v::uuid from ctx where k='h1'), (select v::uuid from ctx where k='h2')]);
+  assert n = 2, 'batch sent';
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h1')) = 'playing', 'first of batch playing';
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h2')) = 'queued', 'rest queued';
+  assert (select sent_to_youtube_at is not null from public.song_requests where id = (select v::uuid from ctx where k='h2')), 'marked sent';
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
+insert into ctx select 'h3', id::text from public.add_song_request((select v::uuid from ctx where k='ride'), 'dQw4w9WgXcQ', 'Never Gonna Give You Up');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+do $$
+begin
+  perform public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[(select v::uuid from ctx where k='h3')]);
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h1')) = 'played', 'previous batch playing → played';
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h2')) = 'played', 'previous batch queued → played';
+  assert (select status from public.song_requests where id = (select v::uuid from ctx where k='h3')) = 'playing', 'new batch playing';
+end $$;
+select pg_temp.expect_error($q$select public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[(select v::uuid from ctx where k='h1')])$q$, 'INVALID_TRANSITION');
+select pg_temp.expect_error($q$select public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[]::uuid[])$q$, 'INVALID_TRANSITION');
+
 -- New drivers default to 10 songs per passenger
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
 do $$ begin

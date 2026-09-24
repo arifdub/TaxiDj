@@ -83,6 +83,10 @@ export async function skip(rideId: string, direction: "next" | "previous") {
   return row && row.id ? row : null;
 }
 
+/** Hand a batch of songs to the YouTube app; the first becomes "playing". */
+export const sendToYouTube = (rideId: string, requestIds: string[]) =>
+  rpc<SongRequest[]>("driver_send_to_youtube", { p_ride_id: rideId, p_request_ids: requestIds });
+
 export const rideHistory = () => rpc<RideHistoryEntry[]>("driver_ride_history", { p_limit: 100 });
 
 export async function getActiveRide(): Promise<Ride | null> {
