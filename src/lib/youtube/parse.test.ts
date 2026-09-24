@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidVideoId, parseIsoDuration, parseYouTubeUrl } from "./parse";
+import { isValidVideoId, parseIsoDuration, parseYouTubeUrl, youTubeQueueUrl } from "./parse";
 
 describe("parseYouTubeUrl", () => {
   it.each([
@@ -50,5 +50,16 @@ describe("parseIsoDuration", () => {
     expect(parseIsoDuration("P0D")).toBe(0);
     expect(parseIsoDuration("garbage")).toBeNull();
     expect(parseIsoDuration(undefined)).toBeNull();
+  });
+});
+
+describe("youTubeQueueUrl", () => {
+  it("builds a playlist link from valid IDs, capped at 50", () => {
+    expect(youTubeQueueUrl(["fHI8X4OXluQ", "bad", "JGwWNGJdvx8"])).toBe(
+      "https://www.youtube.com/watch_videos?video_ids=fHI8X4OXluQ,JGwWNGJdvx8",
+    );
+    expect(youTubeQueueUrl([])).toBeNull();
+    const many = Array.from({ length: 60 }, () => "fHI8X4OXluQ");
+    expect(youTubeQueueUrl(many)!.split(",")).toHaveLength(50);
   });
 });

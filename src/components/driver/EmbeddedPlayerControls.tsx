@@ -14,6 +14,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
+import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { YouTubeIcon } from "@/components/ui";
@@ -189,9 +190,14 @@ export function EmbeddedPlayerControls() {
         </button>
       </div>
 
+      <div className="mt-6 w-full max-w-md">
+        <PlayQueueInYouTube />
+      </div>
+
       <p className="mt-4 max-w-md text-xs text-mist">
         Keep Taxi DJ open while music plays. The screen stays on automatically; on iPhone, locking
-        the screen or switching apps pauses in-app playback.
+        the screen or switching apps pauses in-app playback. For background play, use the YouTube
+        playlist button above.
       </p>
     </div>
   );

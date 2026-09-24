@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CircleCheck, ExternalLink, ListMusic, Music2, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
+import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { PlayLink } from "@/components/driver/PlayLink";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { Thumbnail, YouTubeIcon } from "@/components/ui";
@@ -158,6 +159,10 @@ function ExternalPlayer() {
             <ExternalLink className="size-5" aria-hidden /> Open YouTube
           </span>
         )}
+      </div>
+
+      <div className="mt-6 w-full max-w-sm">
+        <PlayQueueInYouTube />
       </div>
 
       <button

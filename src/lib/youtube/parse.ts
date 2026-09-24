@@ -77,6 +77,20 @@ export function youTubeWatchUrl(videoId: string, source: RequestSource = "youtub
     : `https://www.youtube.com/watch?v=${videoId}`;
 }
 
+/** YouTube's limit for an ad-hoc playlist link. */
+export const MAX_QUEUE_LINK_VIDEOS = 50;
+
+/**
+ * An official YouTube link that plays several videos back-to-back as a
+ * temporary playlist. Opened in the YouTube app (or youtube.com while signed
+ * in), YouTube handles autoplay and — for Premium members — background play.
+ */
+export function youTubeQueueUrl(videoIds: string[]): string | null {
+  const ids = videoIds.filter(isValidVideoId).slice(0, MAX_QUEUE_LINK_VIDEOS);
+  if (ids.length === 0) return null;
+  return `https://www.youtube.com/watch_videos?video_ids=${ids.join(",")}`;
+}
+
 export function youTubeThumbnailUrl(videoId: string) {
   return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 }

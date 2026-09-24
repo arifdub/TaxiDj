@@ -48,6 +48,11 @@ interface PlayerContextValue {
   duration: number;
   volume: number;
   muted: boolean;
+  /**
+   * Pause and stop following the queue because playback moved to the
+   * YouTube app. Pressing play in Taxi DJ resumes in-app playback.
+   */
+  handOff: () => void;
   /** Load a queue item into the player (or resume it if already loaded). */
   load: (item: Playable) => void;
   play: () => void;
@@ -79,6 +84,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadedRef = useRef<{ requestId: string; videoId: string } | null>(null);
   const endedForRef = useRef<string | null>(null);
   const firstSyncRef = useRef(true);
+  const handedOffRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [ready, setReady] = useState(false);
@@ -194,8 +200,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     if (loadedRef.current?.requestId === currentId) return;
     loadedRef.current = { requestId: currentId, videoId: currentVideo };
-    if (initial) {
-      // Opening the app mid-ride: show the song, don't blast it unexpectedly.
+    if (initial || handedOffRef.current) {
+      // Opening the app mid-ride, or playback was handed to the YouTube app:
+      // show the song without starting it here.
       p.cueVideoById(currentVideo);
     } else {
       p.loadVideoById(currentVideo);
@@ -246,6 +253,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     (item: Playable) => {
       const p = playerRef.current;
       if (!p) return;
+      handedOffRef.current = false;
       if (loadedRef.current?.requestId === item.id) {
         p.playVideo();
         return;
@@ -274,7 +282,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       volume,
       muted,
       load,
-      play: () => playerRef.current?.playVideo(),
+      handOff: () => {
+        handedOffRef.current = true;
+        playerRef.current?.pauseVideo();
+      },
+      play: () => {
+        handedOffRef.current = false;
+        playerRef.current?.playVideo();
+      },
       pause: () => playerRef.current?.pauseVideo(),
       stop: () => playerRef.current?.stopVideo(),
       seek: (s) => playerRef.current?.seekTo(s, true),
