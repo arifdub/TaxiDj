@@ -82,7 +82,6 @@ supabase/tests/          SQL test suite (runs against plain PostgreSQL)
    - **Emailed 6-digit code (optional).** This needs `{{ .Token }}` in the **Magic Link** and **Confirm signup** templates (`supabase/templates/`). On hosted Supabase, editing templates requires **custom SMTP** (Authentication → Emails → SMTP Settings, e.g. Resend).
    - Under **Authentication → URL Configuration**, set the Site URL to your domain and add `https://your-domain/**` (and `http://localhost:3000/**`) to Redirect URLs, so the confirmation and reset links are allowed.
    - For production, configure custom SMTP anyway, because Supabase's built-in email sender is heavily rate limited.
-   - For production, configure a custom SMTP provider. Supabase's built-in email service is heavily rate limited.
 
 ## 4. Run the database migrations
 
