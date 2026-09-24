@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/*
+ * Taxi DJ design tokens
+ * Driver screens: dark "night drive" theme.  Passenger screens: bright theme.
+ * Yellow is the brand accent; blue/purple are used sparingly for states.
+ */
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-taxi: #ffc800;
+  --color-taxi-light: #ffd84d;
+  --color-taxi-dark: #e0a800;
+  --color-ink: #09090c;
+  --color-night: #111116;
+  --color-night-2: #1a1a22;
+  --color-night-3: #24242e;
+  --color-line: #2e2e3a;
+  --color-mist: #a1a1b0;
+  --color-go: #22c55e;
+  --color-stop: #ef4444;
+  --color-queue: #3b82f6;
+  --color-play: #8b5cf6;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+/* Respect users who prefer less motion; also keeps the driver UI calm. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes taxidj-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes taxidj-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .animate-slide-down {
+    animation: taxidj-slide-down 220ms ease-out both;
+  }
+  .animate-fade-in {
+    animation: taxidj-fade-in 200ms ease-out both;
+  }
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

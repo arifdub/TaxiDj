@@ -1,0 +1,79 @@
+"use client";
+
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { endRide as apiEndRide, skip as apiSkip, updateRequest } from "@/lib/api";
+import { friendlyError } from "@/lib/errors";
+import { useRide } from "@/hooks/useRide";
+import type { DriverRequestAction, Passenger, QueueItem, Ride } from "@/lib/types";
+
+interface RideContextValue {
+  ride: Ride;
+  queue: QueueItem[];
+  passengers: Passenger[];
+  live: boolean;
+  /** Request ID (or "skip") currently being updated. */
+  busy: string | null;
+  error: string | null;
+  clearError: () => void;
+  act: (requestId: string, action: DriverRequestAction) => Promise<void>;
+  skip: (direction: "next" | "previous") => Promise<void>;
+  endRide: () => Promise<void>;
+  confirmEnd: () => void;
+}
+
+const RideContext = createContext<RideContextValue | null>(null);
+
+export function useDriverRide() {
+  const ctx = useContext(RideContext);
+  if (!ctx) throw new Error("useDriverRide must be used inside <DriverRideProvider>");
+  return ctx;
+}
+
+export function DriverRideProvider({
+  data,
+  confirmEnd,
+  children,
+}: {
+  data: ReturnType<typeof useRide> & { ride: Ride };
+  confirmEnd: () => void;
+  children: ReactNode;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { ride, queue, passengers, live, refresh } = data;
+
+  const run = useCallback(
+    async (key: string, fn: () => Promise<unknown>) => {
+      setBusy(key);
+      setError(null);
+      try {
+        await fn();
+      } catch (err) {
+        setError(friendlyError(err));
+      } finally {
+        setBusy(null);
+        refresh();
+      }
+    },
+    [refresh],
+  );
+
+  const value = useMemo<RideContextValue>(
+    () => ({
+      ride,
+      queue,
+      passengers,
+      live,
+      busy,
+      error,
+      clearError: () => setError(null),
+      act: (requestId, action) => run(requestId, () => updateRequest(requestId, action)),
+      skip: (direction) => run("skip", () => apiSkip(ride.id, direction)),
+      endRide: () => run("end", () => apiEndRide(ride.id)),
+      confirmEnd,
+    }),
+    [ride, queue, passengers, live, busy, error, run, confirmEnd],
+  );
+
+  return <RideContext.Provider value={value}>{children}</RideContext.Provider>;
+}
