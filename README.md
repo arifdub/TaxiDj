@@ -1,5 +1,7 @@
 # 🚕🎵 Taxi DJ — Your Ride. Your Music.
 
+**Live:** deployed on Vercel from the `main` branch.
+
 Taxi DJ lets a taxi or private-hire driver start a ride and show a QR code. Passengers scan it with their phone camera, land on a mobile web page (**no app install, no account**), search YouTube or paste a YouTube / YouTube Music link, and add songs to the driver's queue. The driver sees the queue live, manages it with large, simple controls, and plays each song in the official YouTube app, which then plays through CarPlay and the car speakers.
 
 ```
