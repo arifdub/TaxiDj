@@ -1,175 +1,269 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, Mail, UserRound } from "lucide-react";
+import { KeyRound, LogIn, Mail, UserPlus, UserRound } from "lucide-react";
 import { Button, Notice } from "@/components/ui";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
 /**
- * Driver sign-in by email.
+ * Driver sign-in.
  *
- * The email contains both a link and a one-time code. On iPhone, an app added
- * to the Home Screen has its own storage, separate from Safari: tapping the
- * link signs in Safari, not the installed app. Typing the code signs in
- * wherever Taxi DJ is open, so the code is the primary path.
+ * On iPhone, an app added to the Home Screen has its own storage, separate
+ * from Safari, so an emailed *link* signs in Safari rather than the app.
+ * Email + password (the default) and the emailed one-time code are both
+ * completed inside Taxi DJ, so they work in the installed app.
+ *
+ * The one-time code needs {{ .Token }} in the Supabase email templates; the
+ * password flow works with Supabase's default templates.
  */
+type Mode = "signin" | "signup" | "code" | "verify" | "check-email" | "reset-sent";
+
+const inputClass =
+  "h-14 w-full rounded-2xl border border-line bg-night-3 px-4 text-lg text-white placeholder:text-mist/60 focus:border-taxi focus:outline-none";
+
+function authMessage(message: string, fallback?: string) {
+  if (/invalid login credentials/i.test(message)) return "Wrong email or password.";
+  if (/email not confirmed/i.test(message))
+    return "Please confirm your email first: open the email we sent and tap the link, then sign in here.";
+  if (/already registered|already been registered|already exists/i.test(message))
+    return "That email already has an account. Sign in instead, or use “Forgot password?”.";
+  if (/password should be at least|weak password/i.test(message))
+    return "Choose a stronger password (at least 6 characters).";
+  if (/rate limit|security purposes/i.test(message))
+    return "Too many emails were sent recently. Please wait a few minutes and try again.";
+  if (/expired|invalid/i.test(message)) return "That code is incorrect or has expired.";
+  return friendlyError(message, fallback);
+}
+
 export function SignInPanel() {
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState<"email" | "code" | "guest" | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
-  async function sendCode(e?: React.FormEvent) {
-    e?.preventDefault();
-    setBusy("email");
+  const go = (next: Mode) => {
+    setMode(next);
     setError(null);
-    setNotice(null);
-    const { error } = await supabase().auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/` },
-    });
+  };
+
+  async function attempt(key: string, fn: () => Promise<{ error: { message: string } | null }>, onOk?: () => void) {
+    setBusy(key);
+    setError(null);
+    const { error } = await fn();
     setBusy(null);
-    if (error) {
-      setError(
-        /rate limit|security purposes/i.test(error.message)
-          ? "Please wait a minute before requesting another code."
-          : friendlyError(error, "We couldn't send the email. Check the address and try again."),
-      );
-    } else {
-      setSent(true);
-      if (e === undefined) setNotice("We sent you a new code.");
-    }
+    if (error) setError(authMessage(error.message));
+    else onOk?.();
   }
 
-  async function verifyCode(e: React.FormEvent) {
+  const signIn = (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy("code");
-    setError(null);
-    const { error } = await supabase().auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: "email",
-    });
-    setBusy(null);
     // On success the auth listener re-renders the app as signed in.
-    if (error) {
-      setError(
-        /expired|invalid/i.test(error.message)
-          ? "That code is incorrect or has expired. Check the latest email or send a new code."
-          : friendlyError(error),
-      );
-    }
-  }
+    attempt("signin", () => supabase().auth.signInWithPassword({ email: email.trim(), password }));
+  };
 
-  async function guest() {
-    setBusy("guest");
-    setError(null);
-    const { error } = await supabase().auth.signInAnonymously();
-    setBusy(null);
-    if (error) setError(friendlyError(error));
-  }
+  const signUp = (e: React.FormEvent) => {
+    e.preventDefault();
+    attempt("signup", async () => {
+      const { data, error } = await supabase().auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      // No session means Supabase wants the email confirmed first.
+      if (!error && !data.session) go("check-email");
+      return { error };
+    });
+  };
 
-  const inputClass =
-    "h-14 w-full rounded-2xl border border-line bg-night-3 px-4 text-lg text-white placeholder:text-mist/60 focus:border-taxi focus:outline-none";
+  const forgot = () => {
+    if (!email.trim()) return setError("Enter your email above first.");
+    attempt(
+      "reset",
+      () =>
+        supabase().auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+      () => go("reset-sent"),
+    );
+  };
 
-  if (sent) {
+  const sendCode = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    attempt(
+      "code",
+      () => supabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/` } }),
+      () => go("verify"),
+    );
+  };
+
+  const verify = (e: React.FormEvent) => {
+    e.preventDefault();
+    attempt("verify", () => supabase().auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" }));
+  };
+
+  const guest = () => attempt("guest", () => supabase().auth.signInAnonymously());
+
+  const emailField = (
+    <>
+      <label htmlFor="email" className="sr-only">
+        Email address
+      </label>
+      <input
+        id="email"
+        type="email"
+        required
+        autoComplete="email"
+        inputMode="email"
+        placeholder="you@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className={inputClass}
+      />
+    </>
+  );
+
+  const errorBox = error && (
+    <Notice className="mt-4" tone="error">
+      {error}
+    </Notice>
+  );
+
+  if (mode === "check-email" || mode === "reset-sent") {
     return (
-      <div className="rounded-3xl border border-line bg-night-2 p-6">
-        <KeyRound className="mb-3 size-9 text-taxi" aria-hidden />
-        <h2 className="text-xl font-bold">Enter your code</h2>
-        <p className="mt-1 text-sm text-mist">
-          We emailed a sign-in code to <strong className="text-white">{email}</strong>. Type it here —
-          no need to leave Taxi DJ.
+      <div className="rounded-3xl border border-line bg-night-2 p-6 text-center">
+        <Mail className="mx-auto mb-3 size-10 text-taxi" aria-hidden />
+        <h2 className="text-xl font-bold">Check your email</h2>
+        <p className="mt-2 text-mist">
+          {mode === "check-email" ? (
+            <>
+              We sent a confirmation link to <strong className="text-white">{email}</strong>. Tap it
+              (it&apos;s fine if it opens in Safari), then come back here and sign in with your
+              password.
+            </>
+          ) : (
+            <>
+              We sent a password reset link to <strong className="text-white">{email}</strong>. Set a
+              new password on the page it opens, then come back here and sign in.
+            </>
+          )}
         </p>
-        <form onSubmit={verifyCode} className="mt-5 space-y-3">
-          <label htmlFor="code" className="sr-only">
-            Sign-in code
-          </label>
-          <input
-            id="code"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]{6,10}"
-            required
-            autoFocus
-            placeholder="123456"
-            className={`${inputClass} text-center font-mono text-2xl tracking-[0.4em]`}
-          />
-          <Button type="submit" className="w-full" loading={busy === "code"} disabled={code.length < 6}>
-            Sign in
-          </Button>
-        </form>
-        {error && (
-          <Notice className="mt-4" tone="error">
-            {error}
-          </Notice>
-        )}
-        {notice && !error && (
-          <Notice className="mt-4" tone="success">
-            {notice}
-          </Notice>
-        )}
-        <div className="mt-4 flex justify-between gap-2">
-          <Button variant="ghost" size="md" className="text-mist" onClick={() => sendCode()} loading={busy === "email"}>
-            Send a new code
-          </Button>
-          <Button
-            variant="ghost"
-            size="md"
-            className="text-mist"
-            onClick={() => {
-              setSent(false);
-              setCode("");
-              setError(null);
-            }}
-          >
-            Change email
-          </Button>
-        </div>
+        <Button className="mt-5 w-full" onClick={() => go("signin")}>
+          <LogIn className="size-5" aria-hidden /> Back to sign in
+        </Button>
       </div>
     );
   }
 
+  if (mode === "code" || mode === "verify") {
+    return (
+      <div className="rounded-3xl border border-line bg-night-2 p-6">
+        <KeyRound className="mb-3 size-9 text-taxi" aria-hidden />
+        <h2 className="text-xl font-bold">{mode === "code" ? "Sign in with a code" : "Enter your code"}</h2>
+        {mode === "code" ? (
+          <form onSubmit={sendCode} className="mt-5 space-y-3">
+            {emailField}
+            <Button type="submit" className="w-full" loading={busy === "code"}>
+              <Mail className="size-5" aria-hidden /> Email me a code
+            </Button>
+          </form>
+        ) : (
+          <>
+            <p className="mt-1 text-sm text-mist">
+              Type the code from the email sent to <strong className="text-white">{email}</strong>. If the
+              email only has a link, use your password instead.
+            </p>
+            <form onSubmit={verify} className="mt-5 space-y-3">
+              <label htmlFor="code" className="sr-only">
+                Sign-in code
+              </label>
+              <input
+                id="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                autoFocus
+                placeholder="123456"
+                className={`${inputClass} text-center font-mono text-2xl tracking-[0.4em]`}
+              />
+              <Button type="submit" className="w-full" loading={busy === "verify"} disabled={code.length < 6}>
+                Sign in
+              </Button>
+            </form>
+          </>
+        )}
+        {errorBox}
+        <Button variant="ghost" size="md" className="mt-3 w-full text-mist" onClick={() => go("signin")}>
+          Use email and password instead
+        </Button>
+      </div>
+    );
+  }
+
+  const isSignUp = mode === "signup";
+
   return (
     <div className="rounded-3xl border border-line bg-night-2 p-6">
-      <h2 className="text-xl font-bold">Driver sign in</h2>
-      <p className="mt-1 text-sm text-mist">We&apos;ll email you a code to sign in and keep your ride history.</p>
-      <form onSubmit={sendCode} className="mt-5 space-y-3">
-        <label htmlFor="email" className="sr-only">
-          Email address
+      <div role="tablist" aria-label="Account" className="grid grid-cols-2 gap-1 rounded-2xl bg-night-3 p-1">
+        {(["signin", "signup"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={mode === m}
+            onClick={() => go(m)}
+            className={`min-h-11 rounded-xl text-sm font-bold ${mode === m ? "bg-taxi text-ink" : "text-mist"}`}
+          >
+            {m === "signin" ? "Sign in" : "Create account"}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={isSignUp ? signUp : signIn} className="mt-5 space-y-3">
+        {emailField}
+        <label htmlFor="password" className="sr-only">
+          Password
         </label>
         <input
-          id="email"
-          type="email"
+          id="password"
+          type="password"
           required
-          autoComplete="email"
-          inputMode="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          minLength={6}
+          autoComplete={isSignUp ? "new-password" : "current-password"}
+          placeholder={isSignUp ? "Choose a password (6+ characters)" : "Password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           className={inputClass}
         />
-        <Button type="submit" className="w-full" loading={busy === "email"}>
-          <Mail className="size-5" aria-hidden /> Email me a sign-in code
+        <Button type="submit" className="w-full" loading={busy === "signin" || busy === "signup"}>
+          {isSignUp ? <UserPlus className="size-5" aria-hidden /> : <LogIn className="size-5" aria-hidden />}
+          {isSignUp ? "Create driver account" : "Sign in"}
         </Button>
       </form>
+
+      {!isSignUp && (
+        <div className="mt-2 flex justify-between">
+          <Button variant="ghost" size="md" className="px-2 text-mist" onClick={forgot} loading={busy === "reset"}>
+            Forgot password?
+          </Button>
+          <Button variant="ghost" size="md" className="px-2 text-mist" onClick={() => go("code")}>
+            Email me a code
+          </Button>
+        </div>
+      )}
+      {errorBox}
+
       <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-mist">
         <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
       </div>
       <Button variant="dark" className="w-full" onClick={guest} loading={busy === "guest"}>
         <UserRound className="size-5" aria-hidden /> Continue as guest
       </Button>
-      <p className="mt-2 text-center text-xs text-mist">Guest rides are only saved on this device.</p>
-      {error && (
-        <Notice className="mt-4" tone="error">
-          {error}
-        </Notice>
-      )}
+      <p className="mt-2 text-center text-xs text-mist">Guest rides and settings stay on this device only.</p>
     </div>
   );
 }

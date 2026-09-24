@@ -77,13 +77,11 @@ supabase/tests/          SQL test suite (runs against plain PostgreSQL)
 1. Create a project at [supabase.com](https://supabase.com/dashboard).
 2. **Enable anonymous sign-ins** (passengers use them, and drivers can use them for "Continue as guest"): **Authentication → Sign In / Providers → Allow anonymous sign-ins → On**.
    - Recommended: turn on CAPTCHA (Authentication → Attack Protection) or keep the default anonymous rate limit (30 per hour per IP) to prevent abuse.
-3. **Email sign-in codes (important for the Home Screen app).** On iPhone, an app added to the Home Screen has its own storage, separate from Safari, so a magic *link* would sign in Safari instead of the app. Taxi DJ therefore asks drivers to type a 6-digit **code** from the email. Add the code to both email templates under **Authentication → Email Templates**:
-   - **Confirm signup** (first sign-in) and **Magic Link** (returning drivers): paste the contents of `supabase/templates/confirmation.html` and `supabase/templates/magic_link.html`, or add `{{ .Token }}` anywhere in your own template.
-   - Optional subject: `Your Taxi DJ sign-in code`.
-   - The local Supabase CLI setup (`supabase/config.toml`) already uses these templates.
-4. **Email sign-in** for drivers is on by default. Under **Authentication → URL Configuration**, set:
-   - Site URL: `https://your-domain` (e.g. `https://taxidj.com`)
-   - Redirect URLs: add `https://your-domain/` and `http://localhost:3000/`
+3. **Driver sign-in (works in the Home Screen app).** On iPhone, an app added to the Home Screen has its own storage, separate from Safari, so an emailed *link* signs in Safari instead of the app. Drivers therefore sign in **inside the app**:
+   - **Email + password (default, no setup needed).** "Create account" sends Supabase's default confirmation email. Tapping it may open Safari, which is fine; the driver then signs in with the password in the app. "Forgot password?" emails a reset link that opens `/reset-password`.
+   - **Emailed 6-digit code (optional).** This needs `{{ .Token }}` in the **Magic Link** and **Confirm signup** templates (`supabase/templates/`). On hosted Supabase, editing templates requires **custom SMTP** (Authentication → Emails → SMTP Settings, e.g. Resend).
+   - Under **Authentication → URL Configuration**, set the Site URL to your domain and add `https://your-domain/**` (and `http://localhost:3000/**`) to Redirect URLs, so the confirmation and reset links are allowed.
+   - For production, configure custom SMTP anyway, because Supabase's built-in email sender is heavily rate limited.
    - For production, configure a custom SMTP provider. Supabase's built-in email service is heavily rate limited.
 
 ## 4. Run the database migrations
