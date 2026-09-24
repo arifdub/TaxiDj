@@ -93,7 +93,7 @@ export function PassengerProvider({ code: rawCode, children }: { code: string; c
       queue: live.queue,
       myRequests,
       used: myRequests.filter((q) => COUNTED_STATUSES.includes(q.status)).length,
-      limit: live.ride?.max_requests_per_passenger ?? 3,
+      limit: live.ride?.max_requests_per_passenger ?? 10,
       queueLoading: Boolean(passenger) && live.loading,
       refresh: live.refresh,
       retry,

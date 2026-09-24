@@ -31,6 +31,7 @@ grant all on ctx to authenticated, anon;
 -- Driver starts a ride ------------------------------------------------------
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+select public.update_driver_settings('My Taxi', true, 3);
 insert into ctx select 'ride', id::text from public.start_ride();
 insert into ctx select 'code', join_code from public.rides where id = (select v::uuid from ctx where k = 'ride');
 
@@ -230,6 +231,58 @@ begin
   assert r is null or r.id is null, 'next ignores pending';
   r := public.driver_update_request((select v::uuid from ctx where k='r1'), 'approve');
   assert r.status = 'queued', 'approve';
+end $$;
+
+-- Passenger removes / re-requests their own songs -------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
+select public.join_ride((select v from ctx where k='code'), 'Alex');
+select pg_temp.expect_error($q$select public.passenger_remove_request((select v::uuid from ctx where k='r1'))$q$, 'REQUEST_NOT_FOUND');
+
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+do $$
+declare r public.song_requests;
+begin
+  r := public.passenger_remove_request((select v::uuid from ctx where k='r1'));
+  assert r.status = 'removed' and r.removed_by = 'passenger', 'passenger removes own queued song';
+  -- slot + duplicate freed: same song can be requested again
+  r := public.add_song_request((select v::uuid from ctx where k='ride'), 'fHI8X4OXluQ', 'Blinding Lights');
+  assert r.status = 'pending', 'removed song can be re-requested';
+  update ctx set v = r.id::text where k = 'r1';
+end $$;
+select pg_temp.expect_error($q$select public.passenger_remove_request((select v::uuid from ctx where k='r2'))$q$, 'RIDE_ENDED');
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+select public.driver_update_request((select v::uuid from ctx where k='r1'), 'play');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+select pg_temp.expect_error($q$select public.passenger_remove_request((select v::uuid from ctx where k='r1'))$q$, 'INVALID_TRANSITION');
+
+-- Replay: once played, the passenger can request the same song again
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+select public.driver_update_request((select v::uuid from ctx where k='r1'), 'finish');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+do $$
+declare r public.song_requests;
+begin
+  r := public.add_song_request((select v::uuid from ctx where k='ride'), 'fHI8X4OXluQ', 'Blinding Lights');
+  assert r.id <> (select v::uuid from ctx where k='r1'), 'played song can be requested again (replay)';
+  update ctx set v = r.id::text where k = 'r5';
+end $$;
+-- limit is 2 on this ride: played + replay = 2 → full
+select pg_temp.expect_error($q$select public.add_song_request((select v::uuid from ctx where k='ride'), 'kJQP7kiw5Fk', 'Despacito')$q$, 'REQUEST_LIMIT_REACHED');
+
+-- Driver removal is tagged
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+do $$
+declare r public.song_requests;
+begin
+  r := public.driver_update_request((select v::uuid from ctx where k='r5'), 'remove');
+  assert r.removed_by = 'driver', 'driver removal tagged';
+end $$;
+
+-- New drivers default to 10 songs per passenger
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+do $$ begin
+  assert (public.start_ride()).max_requests_per_passenger = 10, 'default limit is 10';
 end $$;
 
 reset role;

@@ -84,7 +84,7 @@ supabase/tests/          SQL test suite (runs against plain PostgreSQL)
 
 ## 4. Run the database migrations
 
-The whole schema is in `supabase/migrations/20260924000000_taxi_dj_schema.sql`:
+The schema is in `supabase/migrations/` (apply every file in order; `npx supabase db push` does this for you):
 
 - Tables: `drivers`, `rides`, `passengers`, `song_requests`. All use UUID primary keys, foreign keys, and indexes on `ride_id`, `status`, `position` and `created_at`. `join_code` is unique.
 - RLS policies, plus RPC functions: `start_ride`, `end_ride`, `join_ride`, `add_song_request`, `driver_update_request`, `driver_skip`, `driver_ride_history`, `get_ride_by_code`, `update_driver_settings`, `ensure_driver`.
@@ -174,8 +174,9 @@ npm run build       # production build
 2. The QR code encodes `NEXT_PUBLIC_SITE_URL/join/<CODE>` and is rendered in the browser as a crisp SVG. The driver can also share or copy the link.
 3. The join page calls `get_ride_by_code` (callable without an account). It exposes only the ride's display name and whether it is active, ended or expired.
 4. On **JOIN RIDE**, the browser signs in anonymously with Supabase Auth and calls `join_ride(code, nickname)`. The passenger row is tied to that anonymous user ID (`session_identifier`), so refreshing or scanning again resumes the same passenger. The nickname defaults to "Passenger N".
-5. `add_song_request` locks the ride row and then checks that the ride is active and not expired, the caller is a passenger of this ride, the video ID is valid, the per-passenger limit (default 3) isn't reached, and the song isn't already waiting or playing. The canonical YouTube URL and thumbnail are built on the server from the validated video ID and never taken from the client.
-6. Rides expire automatically after 12 hours if the driver never ends them. Once a ride is ended or expired, the passenger link shows "This Taxi DJ ride has ended." and no more requests are accepted.
+5. `add_song_request` locks the ride row and then checks that the ride is active and not expired, the caller is a passenger of this ride, the video ID is valid, the per-passenger limit (default 10, set by the driver) isn't reached, and the song isn't already waiting or playing. The canonical YouTube URL and thumbnail are built on the server from the validated video ID and never taken from the client.
+6. Passengers can remove their own songs that haven't played yet (`passenger_remove_request`), which frees a slot so they can swap in something else. They can also tap **Play again** on a song that has played; this re-requests it and uses one slot.
+7. Rides expire automatically after 12 hours if the driver never ends them. Once a ride is ended or expired, the passenger link shows "This Taxi DJ ride has ended." and no more requests are accepted.
 
 ## 10. How real-time queue updates work
 

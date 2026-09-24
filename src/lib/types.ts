@@ -58,6 +58,8 @@ export interface SongRequest {
   status: RequestStatus;
   position: number;
   started_at: string | null;
+  /** Who removed it, when status is 'removed'. */
+  removed_by: "passenger" | "driver" | null;
   created_at: string;
   updated_at: string;
 }

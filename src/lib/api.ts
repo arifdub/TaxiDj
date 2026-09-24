@@ -141,6 +141,10 @@ export async function joinRide(code: string, nickname: string): Promise<Passenge
   return rpc<Passenger>("join_ride", { p_code: code, p_nickname: nickname || null });
 }
 
+/** Passenger removes one of their own songs that hasn't played yet. */
+export const removeMyRequest = (requestId: string) =>
+  rpc<SongRequest>("passenger_remove_request", { p_request_id: requestId });
+
 export const addSongRequest = (req: {
   rideId: string;
   videoId: string;
