@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { ConfigNotice } from "@/components/ConfigNotice";
 import { Logo } from "@/components/Logo";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Button, ButtonLink, Notice, Skeleton } from "@/components/ui";
 import { friendlyError } from "@/lib/errors";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -19,6 +20,7 @@ export default function ResetPasswordPage() {
     isSupabaseConfigured ? "loading" : "invalid",
   );
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +43,10 @@ export default function ResetPasswordPage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (password !== confirm) {
+      setError("The passwords don't match. Please retype them.");
+      return;
+    }
     setBusy(true);
     setError(null);
     const { error } = await getSupabase()!.auth.updateUser({ password });
@@ -84,12 +90,9 @@ export default function ResetPasswordPage() {
       ) : (
         <form onSubmit={save} className="space-y-3 rounded-3xl border border-line bg-night-2 p-6">
           <h1 className="text-xl font-bold">Choose a new password</h1>
-          <label htmlFor="new-password" className="sr-only">
-            New password
-          </label>
-          <input
+          <PasswordInput
             id="new-password"
-            type="password"
+            label="New password"
             required
             minLength={6}
             autoComplete="new-password"
@@ -98,6 +101,23 @@ export default function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="h-14 w-full rounded-2xl border border-line bg-night-3 px-4 text-lg text-white placeholder:text-mist/60 focus:border-taxi focus:outline-none"
           />
+          <PasswordInput
+            id="confirm-new-password"
+            label="Retype new password"
+            required
+            minLength={6}
+            autoComplete="new-password"
+            placeholder="Retype new password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            aria-invalid={confirm.length > 0 && confirm !== password}
+            className="h-14 w-full rounded-2xl border border-line bg-night-3 px-4 text-lg text-white placeholder:text-mist/60 focus:border-taxi focus:outline-none"
+          />
+          {confirm && (
+            <p aria-live="polite" className={`text-sm font-semibold ${confirm === password ? "text-go" : "text-red-300"}`}>
+              {confirm === password ? "✓ Passwords match" : "Passwords don't match yet"}
+            </p>
+          )}
           <Button type="submit" className="w-full" loading={busy}>
             Save password
           </Button>

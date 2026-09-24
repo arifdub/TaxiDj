@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound, LogIn, Mail, UserPlus, UserRound } from "lucide-react";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Button, Notice } from "@/components/ui";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
@@ -40,6 +41,7 @@ export function SignInPanel() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,10 @@ export function SignInPanel() {
 
   const signUp = (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirm) {
+      setError("The passwords don't match. Please retype them.");
+      return;
+    }
     attempt("signup", async () => {
       const { data, error } = await supabase().auth.signUp({
         email: email.trim(),
@@ -225,12 +231,9 @@ export function SignInPanel() {
 
       <form onSubmit={isSignUp ? signUp : signIn} className="mt-5 space-y-3">
         {emailField}
-        <label htmlFor="password" className="sr-only">
-          Password
-        </label>
-        <input
+        <PasswordInput
           id="password"
-          type="password"
+          label="Password"
           required
           minLength={6}
           autoComplete={isSignUp ? "new-password" : "current-password"}
@@ -239,7 +242,38 @@ export function SignInPanel() {
           onChange={(e) => setPassword(e.target.value)}
           className={inputClass}
         />
-        <Button type="submit" className="w-full" loading={busy === "signin" || busy === "signup"}>
+        {isSignUp && (
+          <>
+            <PasswordInput
+              id="confirm-password"
+              label="Retype password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              placeholder="Retype password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              aria-invalid={confirm.length > 0 && confirm !== password}
+              aria-describedby="password-match"
+              className={inputClass}
+            />
+            <p
+              id="password-match"
+              aria-live="polite"
+              className={`min-h-5 text-sm font-semibold ${
+                !confirm ? "text-mist" : confirm === password ? "text-go" : "text-red-300"
+              }`}
+            >
+              {!confirm ? "" : confirm === password ? "✓ Passwords match" : "Passwords don't match yet"}
+            </p>
+          </>
+        )}
+        <Button
+          type="submit"
+          className="w-full"
+          loading={busy === "signin" || busy === "signup"}
+          disabled={isSignUp && confirm.length > 0 && confirm !== password}
+        >
           {isSignUp ? <UserPlus className="size-5" aria-hidden /> : <LogIn className="size-5" aria-hidden />}
           {isSignUp ? "Create driver account" : "Sign in"}
         </Button>
