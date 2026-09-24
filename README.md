@@ -191,6 +191,7 @@ Taxi DJ **never downloads, extracts, proxies, re-streams or stores YouTube audio
 **Taxi DJ player (default).** Uses YouTube's official embedded player ([IFrame Player API](https://developers.google.com/youtube/iframe_api_reference)) inside the app:
 - Real **Play / Pause / Stop / Next / Previous**, a seekable progress bar, mute and volume.
 - When a song ends, the next queued song starts automatically, and passengers see the status change.
+- Music-player layout: the YouTube player is shown as a small square, like album art (256px on the Player tab, 200px when docked). YouTube's API policies require it to stay visible and at least 200×200px, so it is never hidden. An audio-only player isn't possible: separating YouTube audio from video breaks YouTube's terms.
 - The player lives in the ride layout, so music keeps playing while switching between Ride, Queue, Player and QR. On other tabs it docks with compact controls.
 - The screen is kept awake while music plays (Screen Wake Lock API).
 - Limits:
@@ -199,7 +200,7 @@ Taxi DJ **never downloads, extracts, proxies, re-streams or stores YouTube audio
   - **Volume:** iOS ignores web volume control, so use the phone or car buttons.
 - Audio plays through CarPlay/Bluetooth like any other phone audio.
 
-**Background play (YouTube Premium).** Embedded players can't play in the background: Safari blocks YouTube's sign-in cookies inside other sites (so Premium isn't recognised), iOS pauses embeds when the screen locks, and YouTube's API terms reserve background play for YouTube's own apps. For locked-screen, hands-free playback, the Player tab has **Play queue in YouTube**. It opens the current and queued songs (up to 50) as one temporary YouTube playlist (`youtube.com/watch_videos?video_ids=…`). YouTube then plays them back-to-back itself, in the background and through CarPlay, for Premium members. Taxi DJ can't see YouTube's progress, so tap it again after passengers add songs. The in-app player pauses and stays quiet until you press Play in Taxi DJ again.
+**Background play (YouTube Premium).** Embedded players can't play in the background: Safari blocks YouTube's sign-in cookies inside other sites (so Premium isn't recognised), iOS pauses embeds when the screen locks, and YouTube's API terms reserve background play for YouTube's own apps. For locked-screen, hands-free playback, the Player tab has **Play queue in YouTube Music** (and **Play queue in YouTube**). It opens the current and queued songs (up to 50) as one temporary YouTube playlist (`youtube.com/watch_videos?video_ids=…`). YouTube then plays them back-to-back itself, in the background and through CarPlay, for Premium members. Taxi DJ can't see YouTube's progress, so tap it again after passengers add songs. The in-app player pauses and stays quiet until you press Play in Taxi DJ again.
 
 **YouTube app.** Each song opens in the official YouTube / YouTube Music app, which keeps playing with the screen locked. A web app can't control another app, so the driver taps Next in Taxi DJ for each song, and the progress bar is an estimate.
 

@@ -317,8 +317,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider value={value}>
       {embedded && (
-        <section aria-label="YouTube player" className={showSurface ? "mb-5" : "hidden"}>
-          <div className="relative aspect-video w-full overflow-hidden rounded-3xl border border-line bg-black">
+        <section
+          aria-label="Music player"
+          className={
+            !showSurface ? "hidden" : onPlayerRoute ? "mb-5 flex justify-center" : "mb-5 flex items-stretch gap-3"
+          }
+        >
+          {/*
+            Music-player layout: the official YouTube player is kept small,
+            like album art. YouTube's API policies require it to stay visible
+            and at least 200×200px, so it is never hidden or shrunk further.
+          */}
+          <div
+            className={`relative shrink-0 overflow-hidden rounded-3xl border border-line bg-black ${
+              onPlayerRoute ? "size-64 shadow-[0_20px_60px_-20px_rgba(255,200,0,0.45)]" : "size-[200px]"
+            }`}
+          >
             <div ref={hostRef} className="absolute inset-0 [&>iframe]:size-full" />
             <PlayerOverlay current={current} />
           </div>
@@ -357,14 +371,14 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
     const next = nextToPlay(queue);
     return (
       <Overlay>
-        <TriangleAlert className="size-8 text-taxi" aria-hidden />
-        <p className="max-w-xs font-bold">{message}</p>
-        <div className="flex flex-wrap justify-center gap-2">
+        <TriangleAlert className="size-6 shrink-0 text-taxi" aria-hidden />
+        <p className="font-bold leading-snug">{message}</p>
+        <div className="flex w-full flex-col gap-1.5">
           <a
             href={current.youtube_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-white px-3 text-sm font-bold text-ink"
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-sm font-bold text-ink"
           >
             <ExternalLink className="size-4" aria-hidden /> Open in YouTube
           </a>
@@ -374,7 +388,7 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
               if (next) player.load(next);
               skip("next");
             }}
-            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-taxi px-3 text-sm font-bold text-ink"
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-taxi px-3 text-sm font-bold text-ink"
           >
             <SkipForward className="size-4" aria-hidden /> {next ? "Skip song" : "Finish song"}
           </button>
@@ -396,8 +410,8 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
 
   if (player.needsTap) {
     return (
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-        <p className="flex items-center gap-2 rounded-full bg-taxi px-4 py-2 text-sm font-black text-ink shadow-lg">
+      <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center px-2">
+        <p className="flex items-center gap-1.5 rounded-full bg-taxi px-3 py-1.5 text-xs font-black text-ink shadow-lg">
           <Hand className="size-4" aria-hidden /> Tap the video to start
         </p>
       </div>
@@ -409,7 +423,7 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
 
 function Overlay({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-night/95 p-4 text-center">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-night/95 p-3 text-center text-sm">
       {children}
     </div>
   );
@@ -422,39 +436,40 @@ function DockBar({ current }: { current: SongRequest | null }) {
   const next = nextToPlay(queue);
   const playing = player.status === "playing" || player.status === "buffering";
 
+  const btn = "grid size-11 place-items-center rounded-full";
+
   return (
-    <div className="mt-2 flex items-center gap-2">
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-bold">{current?.title ?? "Nothing playing"}</p>
-        <p className="truncate text-xs text-mist">{current?.artist ?? "YouTube"}</p>
+    <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
+      <div className="min-w-0">
+        <p className="text-[11px] font-black uppercase tracking-widest text-taxi">Now playing</p>
+        <p className="mt-1 line-clamp-3 font-bold leading-snug">{current?.title ?? "Nothing playing"}</p>
+        <p className="mt-0.5 truncate text-xs text-mist">{current?.artist ?? "YouTube"}</p>
       </div>
-      <button
-        type="button"
-        onClick={() => (playing ? player.pause() : current ? player.load(current) : next && (player.load(next), skip("next")))}
-        aria-label={playing ? "Pause" : "Play"}
-        className="grid size-12 place-items-center rounded-full bg-taxi text-ink"
-      >
-        {playing ? <Pause className="size-6 fill-current" aria-hidden /> : <Play className="ml-0.5 size-6 fill-current" aria-hidden />}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          if (next) player.load(next);
-          skip("next");
-        }}
-        disabled={!next && !current}
-        aria-label="Next song"
-        className="grid size-12 place-items-center rounded-full bg-night-3 text-white disabled:opacity-40"
-      >
-        <SkipForward className="size-5 fill-current" aria-hidden />
-      </button>
-      <Link
-        href={`/driver/ride/${ride.id}/player`}
-        aria-label="Open full player"
-        className="grid size-12 place-items-center rounded-full bg-night-3 text-white"
-      >
-        <Maximize2 className="size-5" aria-hidden />
-      </Link>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => (playing ? player.pause() : current ? player.load(current) : next && (player.load(next), skip("next")))}
+          aria-label={playing ? "Pause" : "Play"}
+          className={`${btn} bg-taxi text-ink`}
+        >
+          {playing ? <Pause className="size-5 fill-current" aria-hidden /> : <Play className="ml-0.5 size-5 fill-current" aria-hidden />}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (next) player.load(next);
+            skip("next");
+          }}
+          disabled={!next && !current}
+          aria-label="Next song"
+          className={`${btn} bg-night-3 text-white disabled:opacity-40`}
+        >
+          <SkipForward className="size-5 fill-current" aria-hidden />
+        </button>
+        <Link href={`/driver/ride/${ride.id}/player`} aria-label="Open full player" className={`${btn} bg-night-3 text-white`}>
+          <Maximize2 className="size-5" aria-hidden />
+        </Link>
+      </div>
     </div>
   );
 }
