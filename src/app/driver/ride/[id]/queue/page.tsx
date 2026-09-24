@@ -17,8 +17,10 @@ export default function QueuePage() {
   const { ride, queue } = useDriverRide();
   const songs = queue
     .filter((q) => q.status === "pending" || q.status === "queued" || q.status === "playing" || q.status === "played")
-    .sort((a, b) => a.position - b.position);
+    // Newest request on top, oldest at the bottom.
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || b.position - a.position);
   const waiting = upNext(queue);
+  const playOrder = new Map(waiting.map((q, i) => [q.id, i]));
   const firstWaiting = waiting[0]?.id;
   const lastWaiting = waiting[waiting.length - 1]?.id;
 
@@ -30,7 +32,7 @@ export default function QueuePage() {
         </h1>
         {songs.length > 0 && (
           <p className="text-sm text-mist">
-            {plural(waiting.length, "song")} waiting · songs stay here until removed or the ride ends
+            {plural(waiting.length, "song")} waiting · newest on top · songs stay until removed or the ride ends
           </p>
         )}
       </div>
@@ -46,11 +48,12 @@ export default function QueuePage() {
         </EmptyState>
       ) : (
         <ol className="space-y-3">
-          {songs.map((item, i) => (
+          {songs.map((item) => (
             <QueueCard
               key={item.id}
               item={item}
-              index={i}
+              newestFirst
+              label={playOrder.has(item.id) ? (playOrder.get(item.id) === 0 ? "Next" : `#${playOrder.get(item.id)! + 1}`) : undefined}
               isFirst={item.id === firstWaiting}
               isLast={item.id === lastWaiting}
             />

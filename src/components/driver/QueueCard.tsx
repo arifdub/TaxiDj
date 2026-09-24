@@ -13,14 +13,18 @@ import { youTubeWatchUrl } from "@/lib/youtube/parse";
 /** One song in the driver's UP NEXT list, with play + management actions. */
 export function QueueCard({
   item,
-  index,
+  label,
   isFirst,
   isLast,
+  newestFirst = false,
 }: {
   item: QueueItem;
-  index: number;
+  /** Short label shown at the left, e.g. "1" or "Next". */
+  label?: string;
   isFirst: boolean;
   isLast: boolean;
+  /** List shows newest songs on top, so visual "up" is later in play order. */
+  newestFirst?: boolean;
 }) {
   const { act, busy } = useDriverRide();
   const player = usePlayer();
@@ -41,9 +45,15 @@ export function QueueCard({
       } ${played ? "opacity-80" : ""} ${working ? "opacity-60" : ""}`}
     >
       <div className="flex items-center gap-3">
-        <span className="w-6 text-center font-mono text-lg font-black text-mist" aria-label={`Position ${index + 1}`}>
-          {index + 1}
-        </span>
+        {label && (
+          <span
+            className={`shrink-0 text-center font-black ${
+              label === "Next" ? "rounded-lg bg-taxi px-1.5 py-0.5 text-xs uppercase text-ink" : "w-6 font-mono text-lg text-mist"
+            }`}
+          >
+            {label}
+          </span>
+        )}
         <Thumbnail src={item.thumbnail_url} className="size-16" />
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-base font-bold leading-tight">{item.title}</p>
@@ -103,8 +113,18 @@ export function QueueCard({
         <div className={`mt-3 grid gap-2 border-t border-line pt-3 ${waiting ? "grid-cols-3" : "grid-cols-2"}`}>
           {waiting && (
             <>
-              <ActionButton onClick={() => act(item.id, "move_up")} icon={<ArrowUp />} label="Move up" disabled={isFirst || working} />
-              <ActionButton onClick={() => act(item.id, "move_down")} icon={<ArrowDown />} label="Move down" disabled={isLast || working} />
+              <ActionButton
+                onClick={() => act(item.id, newestFirst ? "move_down" : "move_up")}
+                icon={<ArrowUp />}
+                label={newestFirst ? "Play later" : "Move up"}
+                disabled={(newestFirst ? isLast : isFirst) || working}
+              />
+              <ActionButton
+                onClick={() => act(item.id, newestFirst ? "move_up" : "move_down")}
+                icon={<ArrowDown />}
+                label={newestFirst ? "Play sooner" : "Move down"}
+                disabled={(newestFirst ? isFirst : isLast) || working}
+              />
             </>
           )}
           {playing && (

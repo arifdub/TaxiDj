@@ -47,7 +47,7 @@ export default function RideDashboard() {
         ) : (
           <ol className="space-y-3">
             {waiting.slice(0, PREVIEW_COUNT).map((item, i) => (
-              <QueueCard key={item.id} item={item} index={i} isFirst={i === 0} isLast={i === waiting.length - 1} />
+              <QueueCard key={item.id} item={item} label={i === 0 ? "Next" : String(i + 1)} isFirst={i === 0} isLast={i === waiting.length - 1} />
             ))}
             {waiting.length > PREVIEW_COUNT && (
               <li>

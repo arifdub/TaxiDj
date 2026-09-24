@@ -9,17 +9,9 @@ import { ButtonLink, EmptyState, Notice, SongSkeleton, StatusBadge, Thumbnail, Y
 import { addSongRequest, removeMyRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { nowPlaying, upNext } from "@/lib/queue";
-import type { QueueItem, RequestStatus } from "@/lib/types";
+import type { QueueItem } from "@/lib/types";
 
-// Most relevant first: playing, then waiting (in queue order), then finished.
-const ORDER: Record<RequestStatus, number> = {
-  playing: 0,
-  queued: 1,
-  pending: 1,
-  played: 2,
-  rejected: 3,
-  removed: 3,
-};
+
 
 export default function RequestsPage() {
   return (
@@ -47,7 +39,8 @@ function MyRequests() {
   // Songs the passenger removed themselves disappear from their list.
   const sorted = myRequests
     .filter((q) => !(q.status === "removed" && q.removed_by === "passenger"))
-    .sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.position - b.position);
+    // Newest request on top.
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const full = used >= limit;
 
   async function run(id: string, fn: () => Promise<unknown>, success: string) {
