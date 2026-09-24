@@ -178,7 +178,16 @@ insert into ctx select 'r5', id::text from public.add_song_request((select v::uu
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
 select public.update_driver_settings('Arif''s Car', false, 2);
 select pg_temp.expect_error($q$select public.update_driver_settings('', false, 2)$q$, 'INVALID_DISPLAY_NAME');
-select pg_temp.expect_error($q$select public.update_driver_settings('ok', false, 50)$q$, 'INVALID_REQUEST_LIMIT');
+select pg_temp.expect_error($q$select public.update_driver_settings('ok', false, 51)$q$, 'INVALID_REQUEST_LIMIT');
+select pg_temp.expect_error($q$select public.update_driver_settings('ok', false, 5, 'vinyl')$q$, 'INVALID_ACTION');
+do $$ begin
+  -- settings apply to the ride in progress immediately
+  assert (select max_requests_per_passenger from public.rides where id = (select v::uuid from ctx where k='ride')) = 2, 'limit applied to active ride';
+  assert (select name from public.rides where id = (select v::uuid from ctx where k='ride')) = 'Arif''s Car', 'name applied to active ride';
+  assert (public.update_driver_settings('Arif''s Car', false, 20)).max_requests_per_passenger = 20, 'limit up to 50 allowed';
+  assert (public.set_playback_mode('external')).playback_mode = 'external', 'playback mode saved to account';
+  assert (public.update_driver_settings('Arif''s Car', false, 2, 'embedded')).playback_mode = 'embedded', 'playback mode via settings';
+end $$;
 
 do $$
 begin

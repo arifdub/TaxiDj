@@ -19,6 +19,7 @@ export interface Driver {
   display_name: string;
   auto_approve: boolean;
   max_requests_per_passenger: number;
+  playback_mode: "embedded" | "external";
   created_at: string;
   updated_at: string;
 }

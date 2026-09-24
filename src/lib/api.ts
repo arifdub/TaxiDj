@@ -47,12 +47,25 @@ export const updateDriverSettings = (s: {
   displayName: string;
   autoApprove: boolean;
   maxRequestsPerPassenger: number;
+  playbackMode?: "embedded" | "external";
 }) =>
   rpc<Driver>("update_driver_settings", {
     p_display_name: s.displayName,
     p_auto_approve: s.autoApprove,
     p_max_requests_per_passenger: s.maxRequestsPerPassenger,
+    p_playback_mode: s.playbackMode ?? null,
   });
+
+export const savePlaybackMode = (mode: "embedded" | "external") =>
+  rpc<Driver>("set_playback_mode", { p_mode: mode });
+
+/** The signed-in driver's saved playback mode, if they have a driver profile. */
+export async function getSavedPlaybackMode(): Promise<"embedded" | "external" | null> {
+  const uid = await getSessionUserId();
+  if (!uid) return null;
+  const { data } = await supabase().from("drivers").select("playback_mode").eq("id", uid).maybeSingle();
+  return (data?.playback_mode as "embedded" | "external" | undefined) ?? null;
+}
 
 export const startRide = () => rpc<Ride>("start_ride");
 

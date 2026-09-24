@@ -57,7 +57,7 @@ function SettingsForm({ user }: { user: User }) {
         maxRequestsPerPassenger: limit,
       });
       setDriver(d);
-      setMessage({ tone: "success", text: "Saved. Changes apply to your next ride." });
+      setMessage({ tone: "success", text: "Saved to your account. Changes apply to your current ride right away." });
     } catch (err) {
       setMessage({ tone: "error", text: friendlyError(err) });
     } finally {
@@ -101,33 +101,50 @@ function SettingsForm({ user }: { user: User }) {
             />
           </div>
 
-          <div className="flex items-center gap-4 rounded-3xl border border-line bg-night-2 p-4">
-            <div className="flex-1">
-              <p className="font-bold" id="songs-label">
-                Max songs per passenger
-              </p>
-              <p className="text-sm text-mist">How many songs each passenger can add per ride.</p>
+          <div className="rounded-3xl border border-line bg-night-2 p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <p className="font-bold" id="songs-label">
+                  Max songs per passenger
+                </p>
+                <p className="text-sm text-mist">How many songs each passenger can add per ride (1–50).</p>
+              </div>
+              <div className="flex items-center gap-2" role="group" aria-labelledby="songs-label">
+                <button
+                  type="button"
+                  aria-label="Fewer songs"
+                  onClick={() => setLimit((l) => Math.max(1, l - 1))}
+                  className="grid size-11 place-items-center rounded-full bg-night-3"
+                >
+                  <Minus className="size-5" aria-hidden />
+                </button>
+                <output className="w-10 text-center text-2xl font-black" aria-live="polite">
+                  {limit}
+                </output>
+                <button
+                  type="button"
+                  aria-label="More songs"
+                  onClick={() => setLimit((l) => Math.min(MAX_LIMIT, l + 1))}
+                  className="grid size-11 place-items-center rounded-full bg-night-3"
+                >
+                  <Plus className="size-5" aria-hidden />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2" role="group" aria-labelledby="songs-label">
-              <button
-                type="button"
-                aria-label="Fewer songs"
-                onClick={() => setLimit((l) => Math.max(1, l - 1))}
-                className="grid size-11 place-items-center rounded-full bg-night-3"
-              >
-                <Minus className="size-5" aria-hidden />
-              </button>
-              <output className="w-8 text-center text-2xl font-black" aria-live="polite">
-                {limit}
-              </output>
-              <button
-                type="button"
-                aria-label="More songs"
-                onClick={() => setLimit((l) => Math.min(10, l + 1))}
-                className="grid size-11 place-items-center rounded-full bg-night-3"
-              >
-                <Plus className="size-5" aria-hidden />
-              </button>
+            <div className="mt-3 grid grid-cols-5 gap-2" role="group" aria-label="Quick song limits">
+              {LIMIT_PRESETS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setLimit(n)}
+                  aria-pressed={limit === n}
+                  className={`min-h-11 rounded-xl text-sm font-bold ${
+                    limit === n ? "bg-taxi text-ink" : "bg-night-3 text-white"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -166,6 +183,13 @@ function SettingsForm({ user }: { user: User }) {
         <p className="text-sm text-mist">
           {user.is_anonymous ? "Guest driver (this device only)" : (user.email ?? "Signed in")}
         </p>
+        {user.is_anonymous && (
+          <p className="mt-2 rounded-2xl bg-taxi/10 p-3 text-sm text-taxi">
+            Guest settings and ride history are lost if you sign out or open Taxi DJ somewhere else
+            (e.g. Safari vs. your Home Screen app). Sign out and sign in with your email to keep them
+            permanently on your account.
+          </p>
+        )}
         <Button variant="dark" size="md" className="mt-3" onClick={signOut}>
           <LogOut className="size-4" aria-hidden /> Sign out
         </Button>
@@ -173,6 +197,9 @@ function SettingsForm({ user }: { user: User }) {
     </div>
   );
 }
+
+const MAX_LIMIT = 50;
+const LIMIT_PRESETS = [3, 5, 10, 20, 50];
 
 const MODES: { value: PlaybackMode; title: string; body: string }[] = [
   {
@@ -192,7 +219,7 @@ function PlaybackModeSetting() {
   return (
     <fieldset className="rounded-3xl border border-line bg-night-2 p-4">
       <legend className="float-left w-full font-bold">Play music in</legend>
-      <p className="clear-both text-sm text-mist">Saved on this device.</p>
+      <p className="clear-both text-sm text-mist">Saved to your account.</p>
       <div className="mt-3 space-y-2">
         {MODES.map((m) => (
           <label
