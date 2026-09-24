@@ -10,6 +10,8 @@ import { Button, Notice, Skeleton } from "@/components/ui";
 import { ensureDriver, updateDriverSettings } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
+import { usePlaybackMode } from "@/hooks/usePlaybackMode";
+import type { PlaybackMode } from "@/lib/playback";
 import type { Driver } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -157,6 +159,8 @@ function SettingsForm({ user }: { user: User }) {
 
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
 
+      <PlaybackModeSetting />
+
       <div className="rounded-3xl border border-line bg-night-2 p-4">
         <p className="font-bold">Account</p>
         <p className="text-sm text-mist">
@@ -167,5 +171,51 @@ function SettingsForm({ user }: { user: User }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+const MODES: { value: PlaybackMode; title: string; body: string }[] = [
+  {
+    value: "embedded",
+    title: "Taxi DJ player",
+    body: "Plays inside Taxi DJ with play, pause, stop and next controls, and moves to the next song automatically. Keep Taxi DJ open while music plays.",
+  },
+  {
+    value: "external",
+    title: "YouTube app",
+    body: "Opens each song in the YouTube or YouTube Music app. Keeps playing with the screen locked. Tap Next in Taxi DJ for each song.",
+  },
+];
+
+function PlaybackModeSetting() {
+  const [mode, setMode] = usePlaybackMode();
+  return (
+    <fieldset className="rounded-3xl border border-line bg-night-2 p-4">
+      <legend className="float-left w-full font-bold">Play music in</legend>
+      <p className="clear-both text-sm text-mist">Saved on this device.</p>
+      <div className="mt-3 space-y-2">
+        {MODES.map((m) => (
+          <label
+            key={m.value}
+            className={`flex cursor-pointer gap-3 rounded-2xl border p-3 ${
+              mode === m.value ? "border-taxi bg-taxi/10" : "border-line bg-night-3"
+            }`}
+          >
+            <input
+              type="radio"
+              name="playback-mode"
+              value={m.value}
+              checked={mode === m.value}
+              onChange={() => setMode(m.value)}
+              className="mt-1 size-5 shrink-0 accent-taxi"
+            />
+            <span>
+              <span className="block font-bold">{m.title}</span>
+              <span className="block text-sm text-mist">{m.body}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

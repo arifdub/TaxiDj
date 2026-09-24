@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DriverGate } from "@/components/driver/DriverGate";
 import { DriverRideProvider } from "@/components/driver/RideContext";
 import { NewRequestToast } from "@/components/driver/NewRequestToast";
+import { PlayerProvider } from "@/components/driver/PlayerProvider";
 import { RideSummary } from "@/components/driver/RideSummary";
 import { DriverShell } from "@/components/driver/DriverShell";
 import { ButtonLink, EmptyState, Skeleton, SongSkeleton } from "@/components/ui";
@@ -81,7 +82,7 @@ function RideFrame({ children }: { children: ReactNode }) {
       <div className="min-h-dvh bg-ink pb-28 text-white">
         <div className="mx-auto w-full max-w-lg px-4 safe-top md:max-w-3xl">
           <RideHeader ride={ride} passengers={data.passengers.length} live={data.live} />
-          {children}
+          <PlayerProvider>{children}</PlayerProvider>
         </div>
       </div>
 

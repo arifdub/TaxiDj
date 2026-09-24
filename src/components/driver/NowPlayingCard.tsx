@@ -3,16 +3,22 @@
 import Link from "next/link";
 import { Music2, Play, SkipForward } from "lucide-react";
 import { PlayLink } from "@/components/driver/PlayLink";
+import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { Thumbnail, YouTubeIcon } from "@/components/ui";
 import { nextToPlay, nowPlaying } from "@/lib/queue";
-import { playback } from "@/lib/playback";
+import { providerFor } from "@/lib/playback";
 
 /** Compact NOW PLAYING section for the ride dashboard. */
 export function NowPlayingCard() {
   const { ride, queue, skip, busy } = useDriverRide();
   const current = nowPlaying(queue);
   const next = nextToPlay(queue);
+  const player = usePlayer();
+  const playback = providerFor(player?.mode ?? "external");
+
+  // In-app mode: the docked YouTube player above already shows the song.
+  if (player?.embedded && current) return null;
 
   return (
     <section aria-labelledby="now-playing" className="rounded-3xl border border-line bg-gradient-to-b from-night-2 to-night p-4">

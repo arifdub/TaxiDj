@@ -8,7 +8,9 @@ import { PlayLink } from "@/components/driver/PlayLink";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { Thumbnail, YouTubeIcon } from "@/components/ui";
 import { formatDuration } from "@/lib/format";
-import { playback } from "@/lib/playback";
+import { externalYouTubeProvider as playback } from "@/lib/playback";
+import { usePlayer } from "@/components/driver/PlayerProvider";
+import { EmbeddedPlayerControls } from "@/components/driver/EmbeddedPlayerControls";
 import { lastPlayed, nextToPlay, nowPlaying, upNext } from "@/lib/queue";
 import type { QueueItem } from "@/lib/types";
 
@@ -18,7 +20,14 @@ import type { QueueItem } from "@/lib/types";
  * playback provider can't really drive are presented honestly.
  */
 export default function PlayerPage() {
+  const player = usePlayer();
+  if (player?.embedded) return <EmbeddedPlayerControls />;
+  return <ExternalPlayer />;
+}
+
+function ExternalPlayer() {
   const { ride, queue, skip, act, busy } = useDriverRide();
+  const player = usePlayer();
   const current = nowPlaying(queue);
   const next = nextToPlay(queue);
   const previous = lastPlayed(queue);
@@ -150,6 +159,14 @@ export default function PlayerPage() {
           </span>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => player?.setMode("embedded")}
+        className="mt-5 min-h-11 text-sm font-bold text-taxi underline"
+      >
+        Play inside Taxi DJ instead
+      </button>
     </div>
   );
 }

@@ -184,14 +184,24 @@ npm run build       # production build
 - On any change the hook refetches the ride's queue. This keeps ordering and nickname joins consistent. The driver gets a calm **NEW SONG REQUEST** card for newly arrived songs, and passengers see their status badge change (Pending → Queued #N → Playing → Played / Removed).
 - Mobile browsers drop WebSockets in the background, so the hook also refetches when the page becomes visible or the network comes back, and runs a 30-second safety poll.
 
-## 11. YouTube playback limitations (important)
+## 11. Playback modes and YouTube limitations (important)
 
-- Taxi DJ **never downloads, extracts, proxies, re-streams or stores YouTube audio or video**. It stores only the video ID, the link, and display metadata.
-- A web app cannot control the YouTube iOS app: it can't start, pause, skip or read the playback position. So in the MVP:
-  - **Play** marks the song as playing in the queue and opens its official link in the YouTube or YouTube Music app (or youtube.com if the app isn't installed).
-  - **Next / Previous** move through the Taxi DJ queue and open the chosen song.
-  - The progress bar is an *estimate* based on when the song started and how long it is, and the UI labels it that way. Volume stays with the phone or car controls.
-- Autoplay of the next song after one finishes isn't possible from the web. The driver taps Next.
+Taxi DJ **never downloads, extracts, proxies, re-streams or stores YouTube audio or video**. It stores only the video ID, the link, and display metadata. Drivers choose how songs play under **Settings → Play music in** (saved per device):
+
+**Taxi DJ player (default).** Uses YouTube's official embedded player ([IFrame Player API](https://developers.google.com/youtube/iframe_api_reference)) inside the app:
+- Real **Play / Pause / Stop / Next / Previous**, a seekable progress bar, mute and volume.
+- When a song ends, the next queued song starts automatically, and passengers see the status change.
+- The player lives in the ride layout, so music keeps playing while switching between Ride, Queue, Player and QR. On other tabs it docks with compact controls.
+- The screen is kept awake while music plays (Screen Wake Lock API).
+- Limits:
+  - **iPhone:** locking the screen or switching apps pauses embedded playback, which is a platform rule. The first song may need one tap on the video itself; after that, Taxi DJ's controls and auto-advance work.
+  - **Embedding:** some videos' owners block playback in other apps. Taxi DJ shows "Open in YouTube" and "Skip song" for those.
+  - **Volume:** iOS ignores web volume control, so use the phone or car buttons.
+- Audio plays through CarPlay/Bluetooth like any other phone audio.
+
+**YouTube app.** Each song opens in the official YouTube / YouTube Music app, which keeps playing with the screen locked. A web app can't control another app, so the driver taps Next in Taxi DJ for each song, and the progress bar is an estimate.
+
+The logic is in `src/components/driver/PlayerProvider.tsx` and `src/lib/playback/`.
 
 ## 12. Future native iOS / CarPlay architecture
 
