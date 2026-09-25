@@ -313,6 +313,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const active = status === "playing" || status === "paused" || status === "buffering";
   const showSurface = embedded && (onPlayerRoute || Boolean(current) || active);
+  // Outside the Player tab the player docks as a sticky bar above the tabs.
+  const docked = showSurface && !onPlayerRoute;
 
   return (
     <PlayerContext.Provider value={value}>
@@ -320,8 +322,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         <section
           aria-label="Music player"
           className={
-            !showSurface ? "hidden" : onPlayerRoute ? "mb-5 flex justify-center" : "mb-5 flex items-stretch gap-3"
+            !showSurface
+              ? "hidden"
+              : onPlayerRoute
+                ? "mb-5 flex justify-center"
+                : "fixed inset-x-2 z-30 mx-auto flex max-w-lg items-stretch gap-3 rounded-3xl border border-line bg-night-2/95 p-2 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur md:max-w-3xl"
           }
+          style={docked ? { bottom: "calc(max(1rem, env(safe-area-inset-bottom)) + 4.75rem)" } : undefined}
         >
           {/*
             Music-player layout: the official YouTube player is kept small,
@@ -340,6 +347,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         </section>
       )}
       {children}
+      {/* Room so the last items can scroll above the sticky player. */}
+      {docked && <div aria-hidden className="h-56" />}
     </PlayerContext.Provider>
   );
 }
@@ -436,16 +445,17 @@ function DockBar({ current }: { current: SongRequest | null }) {
   const next = nextToPlay(queue);
   const playing = player.status === "playing" || player.status === "buffering";
 
-  const btn = "grid size-11 place-items-center rounded-full";
+  const btn = "grid size-11 shrink-0 place-items-center rounded-full";
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
-      <div className="min-w-0">
+    <div className="flex min-w-0 flex-1 flex-col justify-between py-1 max-[380px]:items-center max-[380px]:justify-center">
+      {/* On very narrow phones only the buttons fit beside the 200px player. */}
+      <div className="min-w-0 max-[380px]:hidden">
         <p className="text-[11px] font-black uppercase tracking-widest text-taxi">Now playing</p>
         <p className="mt-1 line-clamp-3 font-bold leading-snug">{current?.title ?? "Nothing playing"}</p>
         <p className="mt-0.5 truncate text-xs text-mist">{current?.artist ?? "YouTube"}</p>
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 max-[380px]:flex-col max-[380px]:gap-2">
         <button
           type="button"
           onClick={() => (playing ? player.pause() : current ? player.load(current) : next && (player.load(next), skip("next")))}

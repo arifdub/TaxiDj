@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Ban, Check, CircleCheck, Ellipsis, ListVideo, Music2, Play, Trash2, UserRound } from "lucide-react";
+import { ArrowDown, ArrowUp, AudioLines, Ban, Check, CircleCheck, Ellipsis, ListVideo, Music2, Pause, Play, Trash2, UserRound } from "lucide-react";
 import { PlayLink } from "@/components/driver/PlayLink";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
@@ -34,6 +34,7 @@ export function QueueCard({
   const played = item.status === "played";
   const waiting = pending || item.status === "queued";
   const working = busy === item.id;
+  const audible = player?.status === "playing" || player?.status === "buffering";
   const playNow = () => {
     if (!playing) act(item.id, "play");
   };
@@ -65,14 +66,35 @@ export function QueueCard({
             <UserRound className="size-3.5" aria-hidden /> {item.passenger?.nickname ?? "Passenger"}
           </p>
         </div>
-        <PlayLink
-          item={item}
-          onPlay={playNow}
-          aria-label={`Play ${item.title} ${played ? "again" : "now"}`}
-          className="grid size-14 shrink-0 place-items-center rounded-full bg-taxi text-ink hover:bg-taxi-light"
-        >
-          <Play className="size-6 fill-current" aria-hidden />
-        </PlayLink>
+        {playing && player?.embedded ? (
+          // The song in the Taxi DJ player: Pause while playing, Play when paused.
+          <button
+            type="button"
+            onClick={() => (audible ? player.pause() : player.load(item))}
+            aria-label={audible ? `Pause ${item.title}` : `Resume ${item.title}`}
+            className="grid size-14 shrink-0 place-items-center rounded-full bg-taxi text-ink hover:bg-taxi-light"
+          >
+            {audible ? <Pause className="size-6 fill-current" aria-hidden /> : <Play className="ml-0.5 size-6 fill-current" aria-hidden />}
+          </button>
+        ) : playing ? (
+          // Playing in the YouTube app: show that it's on; tapping reopens it.
+          <PlayLink
+            item={item}
+            aria-label={`${item.title} is playing in YouTube`}
+            className="grid size-14 shrink-0 place-items-center rounded-full bg-go text-ink"
+          >
+            <AudioLines className="size-6" aria-hidden />
+          </PlayLink>
+        ) : (
+          <PlayLink
+            item={item}
+            onPlay={playNow}
+            aria-label={`Play ${item.title} ${played ? "again" : "now"}`}
+            className="grid size-14 shrink-0 place-items-center rounded-full bg-taxi text-ink hover:bg-taxi-light"
+          >
+            <Play className="ml-0.5 size-6 fill-current" aria-hidden />
+          </PlayLink>
+        )}
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
