@@ -25,8 +25,8 @@ import type { SongRequest } from "@/lib/types";
 //
 // The Supabase queue stays the source of truth: whatever request is
 // "playing" in the database is what the embedded player loads. When a song
-// ends, the player advances the queue (driver_skip 'next'), and the new
-// "playing" row is loaded automatically.
+// ends, the player starts the next queued song straight away (without
+// waiting for the database round trip) and marks it "playing" in the queue.
 //
 // The player lives in the ride layout (not a page), so music keeps playing
 // while the driver moves between the Ride / Queue / Player / QR tabs.
@@ -74,7 +74,7 @@ export function usePlayer() {
 const TAP_HINT_MS = 2500;
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const { queue, skip } = useDriverRide();
+  const { queue, skip, act } = useDriverRide();
   const [mode, setMode] = usePlaybackMode();
   const embedded = mode === "embedded";
   const onPlayerRoute = usePathname().endsWith("/player");
@@ -84,6 +84,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** The request currently loaded in the player. */
   const loadedRef = useRef<{ requestId: string; videoId: string } | null>(null);
   const endedForRef = useRef<string | null>(null);
+  /** Song auto-advance started, until the queue shows it playing. */
+  const advancingRef = useRef<string | null>(null);
   const firstSyncRef = useRef(true);
   const handedOffRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -103,10 +105,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const current = nowPlaying(queue);
   const currentRef = useRef(current);
+  const queueRef = useRef(queue);
   const skipRef = useRef(skip);
+  const actRef = useRef(act);
   useEffect(() => {
     currentRef.current = current;
+    queueRef.current = queue;
     skipRef.current = skip;
+    actRef.current = act;
   });
 
   /** iOS only starts the first video after a tap on the player itself. */
@@ -117,6 +123,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (state !== YT_STATE.PLAYING && state !== YT_STATE.BUFFERING) setNeedsTap(true);
     }, TAP_HINT_MS);
   }, []);
+
+  /**
+   * The loaded song finished: start the next queued song right away, then
+   * record it in the queue. Runs once per finished play of a song.
+   */
+  const advance = useCallback(() => {
+    const p = playerRef.current;
+    const loaded = loadedRef.current;
+    if (!p || !loaded || handedOffRef.current || endedForRef.current === loaded.requestId) return;
+    endedForRef.current = loaded.requestId;
+    const next = nextToPlay(queueRef.current.filter((q) => q.id !== loaded.requestId));
+    if (next) {
+      loadedRef.current = { requestId: next.id, videoId: next.youtube_video_id };
+      advancingRef.current = next.id;
+      setError(null);
+      p.loadVideoById(next.youtube_video_id);
+      armTapHint();
+      // Marks the finished song played and this one playing.
+      actRef.current(next.id, "play");
+    } else if (currentRef.current?.id === loaded.requestId) {
+      // Nothing left: mark the finished song played.
+      skipRef.current("next");
+    }
+  }, [armTapHint]);
+  const advanceRef = useRef(advance);
+  useEffect(() => {
+    advanceRef.current = advance;
+  });
 
   // Create / destroy the YouTube player.
   useEffect(() => {
@@ -140,6 +174,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             },
             onStateChange: ({ data }) => {
               if (data === YT_STATE.PLAYING) {
+                // A new play of this song (also a replay) can auto-advance again.
+                endedForRef.current = null;
                 setStatus("playing");
                 setNeedsTap(false);
                 setError(null);
@@ -150,12 +186,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 setStatus("buffering");
               } else if (data === YT_STATE.ENDED) {
                 setStatus("ended");
-                // Auto-advance the queue once per finished request.
-                const cur = currentRef.current;
-                if (cur && loadedRef.current?.requestId === cur.id && endedForRef.current !== cur.id) {
-                  endedForRef.current = cur.id;
-                  skipRef.current("next");
-                }
+                advanceRef.current();
               } else {
                 setStatus("idle");
               }
@@ -196,12 +227,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     firstSyncRef.current = false;
 
     if (!currentId || !currentVideo) {
-      if (loadedRef.current) {
+      // Mid auto-advance the queue can briefly show nothing playing.
+      if (loadedRef.current && loadedRef.current.requestId !== advancingRef.current) {
         loadedRef.current = null;
         p.stopVideo();
       }
       return;
     }
+    if (currentId === advancingRef.current) advancingRef.current = null;
     if (loadedRef.current?.requestId === currentId) return;
     loadedRef.current = { requestId: currentId, videoId: currentVideo };
     if (initial || handedOffRef.current) {
@@ -224,6 +257,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setDuration(p.getDuration() || 0);
       setVolumeState(p.getVolume());
       setMuted(p.isMuted());
+      // Backup for a missed "ended" event (seen on some mobile browsers).
+      if (p.getPlayerState() === YT_STATE.ENDED) advanceRef.current();
     }, 500);
     return () => clearInterval(t);
   }, [ready]);
@@ -258,6 +293,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const p = playerRef.current;
       if (!p) return;
       handedOffRef.current = false;
+      advancingRef.current = null;
       setClosed(false);
       if (loadedRef.current?.requestId === item.id) {
         p.playVideo();
