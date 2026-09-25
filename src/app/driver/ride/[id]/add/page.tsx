@@ -18,7 +18,9 @@ export default function DriverAddSongPage() {
   const { ride, queue, refresh } = useDriverRide();
   const [tab, setTab] = useState<Tab>("search");
   const [searchConfigured, setSearchConfigured] = useState<boolean | null>(null);
+  // Spotify tab: pasted links work without Spotify keys; search needs keys.
   const [spotifyConfigured, setSpotifyConfigured] = useState(false);
+  const [spotifySearch, setSpotifySearch] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [added, setAdded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,8 @@ export default function DriverAddSongPage() {
       .then((r) => r.json())
       .then((c) => {
         setSearchConfigured(Boolean(c.youtubeSearch));
-        setSpotifyConfigured(Boolean(c.spotifySearch));
+        setSpotifyConfigured(Boolean(c.spotifyLinks ?? c.spotifySearch));
+        setSpotifySearch(Boolean(c.spotifySearch));
         if (!c.youtubeSearch) setTab("paste");
       })
       .catch(() => setSearchConfigured(false));
@@ -129,7 +132,15 @@ export default function DriverAddSongPage() {
         </div>
         <div className="mt-4">
           {tab === "spotify" ? (
-            <SpotifyPanel onAdd={addSpotify} adding={adding} inQueue={spotifyInQueue} disabled={false} />
+            <SpotifyPanel
+              searchEnabled={spotifySearch}
+              onAdd={addSpotify}
+              onAddVideo={(v, spotifyTrackId) => add(v, "youtube", { spotifyTrackId })}
+              adding={adding}
+              inQueue={spotifyInQueue}
+              videoInQueue={inQueue}
+              disabled={false}
+            />
           ) : tab === "search" ? (
             searchConfigured === false ? (
               <Notice tone="info">

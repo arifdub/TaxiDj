@@ -354,26 +354,51 @@ export function PastePanel({
 // ----------------------------------------------------------- Spotify ----
 
 /**
- * Spotify search (or a pasted Spotify track link). Picking a song hands the
- * Spotify track to `onAdd`; the caller matches it to YouTube for playback.
+ * Spotify tab.
+ * * With Spotify API keys: search Spotify, or paste a song link. Picking a song
+ *   calls `onAdd(track)`; the caller matches it to YouTube automatically.
+ * * Without keys (no Spotify developer account needed): paste a song link.
+ *   Taxi DJ reads the title from Spotify's public link preview, shows the
+ *   best YouTube versions, and the rider picks one via `onAddVideo`.
  */
 export function SpotifyPanel({
+  searchEnabled,
   onAdd,
+  onAddVideo,
   adding,
   inQueue,
+  videoInQueue,
   disabled,
 }: {
+  searchEnabled: boolean;
   onAdd: (track: SpotifyTrack) => void;
+  onAddVideo: (video: VideoResult, spotifyTrackId: string) => void;
   adding: string | null;
   /** Spotify IDs already waiting/playing in the ride. */
   inQueue: Set<string>;
+  /** YouTube video IDs already waiting/playing in the ride. */
+  videoInQueue: Set<string>;
   disabled: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SpotifyTrack[] | null>(null);
+  const [linkResult, setLinkResult] = useState<{
+    spotifyId: string;
+    title: string;
+    imageUrl: string | null;
+    spotifyUrl: string;
+    videos: VideoResult[];
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  async function getJson(url: string) {
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(res.status === 404 ? "NOT_FOUND" : (data.error ?? "UPSTREAM"));
+    return data;
+  }
 
   async function search(e: React.FormEvent) {
     e.preventDefault();
@@ -382,35 +407,35 @@ export function SpotifyPanel({
     inputRef.current?.blur();
     setLoading(true);
     setError(null);
+    setResults(null);
+    setLinkResult(null);
     try {
-      let tracks: SpotifyTrack[];
       if (looksLikeSpotifyLink(q)) {
         const id = parseSpotifyTrackLink(q);
         if (!id) {
-          setResults(null);
           setError("That Spotify link isn't a single song. Share a song link, not a playlist or album.");
           return;
         }
-        const res = await fetch(`/api/spotify/track?id=${id}`);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(res.status === 404 ? "NOT_FOUND" : "UPSTREAM");
-        tracks = [data.track];
+        if (searchEnabled) {
+          setResults([(await getJson(`/api/spotify/track?id=${id}`)).track]);
+        } else {
+          const { track } = await getJson(`/api/spotify/link?id=${id}`);
+          const { videos } = await getJson(`/api/music/match?list=1&title=${encodeURIComponent(track.title)}`);
+          setLinkResult({ ...track, videos: videos.slice(0, 5) });
+        }
+      } else if (searchEnabled) {
+        setResults((await getJson(`/api/spotify/search?q=${encodeURIComponent(q)}`)).results);
       } else {
-        const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}`);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error ?? "UPSTREAM");
-        tracks = data.results;
+        setError("Paste a Spotify song link: in Spotify tap ⋯ or Share on a song → Copy link.");
       }
-      setResults(tracks);
     } catch (err) {
-      setResults(null);
       const code = err instanceof Error ? err.message : "";
       setError(
         code === "NOT_FOUND"
           ? "We couldn't find that Spotify song."
           : code === "RATE_LIMITED"
-            ? "You're searching a little fast. Please wait a moment and try again."
-            : friendlyError(err, "Spotify search is unavailable right now. You can still search YouTube."),
+            ? "You're going a little fast. Please wait a moment and try again."
+            : friendlyError(err, "Spotify is unavailable right now. You can still search YouTube."),
       );
     } finally {
       setLoading(false);
@@ -421,7 +446,7 @@ export function SpotifyPanel({
     <div>
       <form onSubmit={search} role="search" className="flex gap-2">
         <label htmlFor="spotify-search" className="sr-only">
-          Search Spotify or paste a Spotify song link
+          {searchEnabled ? "Search Spotify or paste a Spotify song link" : "Paste a Spotify song link"}
         </label>
         <div className="relative flex-1">
           <SpotifyIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2" />
@@ -431,28 +456,47 @@ export function SpotifyPanel({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Spotify or paste a link…"
-            enterKeyHint="search"
+            placeholder={searchEnabled ? "Search Spotify or paste a link…" : "Paste a Spotify song link…"}
+            enterKeyHint={searchEnabled ? "search" : "go"}
+            inputMode={searchEnabled ? "search" : "url"}
             autoComplete="off"
+            autoCapitalize="off"
             maxLength={200}
             className="h-14 w-full rounded-2xl border-2 border-zinc-200 bg-zinc-50 pl-12 pr-4 text-lg focus:border-[#1DB954] focus:bg-white focus:outline-none"
           />
         </div>
         <button
           type="submit"
-          aria-label="Search Spotify"
+          aria-label={searchEnabled ? "Search Spotify" : "Find Spotify song"}
           disabled={loading}
           className="grid min-h-14 min-w-14 place-items-center rounded-2xl bg-[#1DB954] px-4 text-black hover:bg-[#1ed760] disabled:opacity-60 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954]"
         >
           {loading ? <Spinner className="size-5" /> : <Search className="size-5" aria-hidden />}
         </button>
       </form>
+      {!searchEnabled && !query && (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              setQuery(await navigator.clipboard.readText());
+            } catch {
+              // Clipboard permission denied: the user can paste manually.
+            }
+          }}
+          className="mt-2 min-h-11 text-sm font-bold text-[#1a8f45]"
+        >
+          Paste from clipboard
+        </button>
+      )}
 
       <div className="mt-4" aria-live="polite">
         {loading ? (
-          <SongSkeleton tone="light" count={5} />
+          <SongSkeleton tone="light" count={searchEnabled ? 5 : 3} />
         ) : error ? (
           <Notice tone="error">{error}</Notice>
+        ) : linkResult ? (
+          <LinkMatches result={linkResult} {...{ onAddVideo, adding, inQueue, videoInQueue, disabled }} />
         ) : results?.length === 0 ? (
           <p className="py-8 text-center text-zinc-500">No results. Try a different search.</p>
         ) : results ? (
@@ -501,13 +545,77 @@ export function SpotifyPanel({
               );
             })}
           </ul>
-        ) : (
+        ) : searchEnabled ? (
           <p className="py-8 text-center text-sm text-zinc-500">
             Search Spotify for any song, or paste a Spotify song link. Songs play through YouTube in
             the car.
           </p>
+        ) : (
+          <div className="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-600">
+            <p className="font-bold text-ink">Add a song from Spotify</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>In Spotify, tap ⋯ (or Share) on a song.</li>
+              <li>Tap <strong>Copy link</strong>.</li>
+              <li>Paste it above and pick the right version.</li>
+            </ol>
+            <p className="mt-2 text-xs text-zinc-500">Works with free and Premium Spotify. Songs play through YouTube in the car.</p>
+          </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Pasted Spotify link (no API keys): pick which YouTube version to add. */
+function LinkMatches({
+  result,
+  onAddVideo,
+  adding,
+  inQueue,
+  videoInQueue,
+  disabled,
+}: {
+  result: { spotifyId: string; title: string; imageUrl: string | null; spotifyUrl: string; videos: VideoResult[] };
+  onAddVideo: (video: VideoResult, spotifyTrackId: string) => void;
+  adding: string | null;
+  inQueue: Set<string>;
+  videoInQueue: Set<string>;
+  disabled: boolean;
+}) {
+  const already = inQueue.has(result.spotifyId);
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-2xl bg-[#1DB954]/10 p-3 ring-1 ring-[#1DB954]/30">
+        <Thumbnail src={result.imageUrl} className="size-14" />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-[#1a8f45]">
+            <SpotifyIcon className="size-3" /> From Spotify
+          </p>
+          <p className="truncate font-bold">{result.title}</p>
+          <a href={result.spotifyUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-[#1a8f45] underline">
+            Listen on Spotify
+          </a>
+        </div>
+      </div>
+      {already ? (
+        <p className="rounded-2xl bg-zinc-100 py-4 text-center font-bold text-zinc-600">Already in the queue</p>
+      ) : (
+        <>
+          <p className="text-sm font-bold text-zinc-700">Pick the version to play:</p>
+          <ul className="divide-y divide-zinc-100">
+            {result.videos.map((v, i) => (
+              <ResultRow
+                key={v.videoId}
+                video={i === 0 ? { ...v, channel: `${v.channel ?? "YouTube"} · Best match` } : v}
+                onAdd={() => onAddVideo({ ...v, title: result.title }, result.spotifyId)}
+                adding={adding === v.videoId}
+                inQueue={videoInQueue.has(v.videoId)}
+                disabled={disabled || (adding !== null && adding !== v.videoId)}
+              />
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

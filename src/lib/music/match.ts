@@ -18,7 +18,14 @@ export function pickBestMatch(
   candidates: VideoResult[],
   track: { title: string; artist: string; durationSeconds: number | null },
 ): VideoResult | null {
-  if (candidates.length === 0) return null;
+  return rankMatches(candidates, track)[0] ?? null;
+}
+
+/** All candidates, best match first. */
+export function rankMatches(
+  candidates: VideoResult[],
+  track: { title: string; artist: string; durationSeconds: number | null },
+): VideoResult[] {
   const title = norm(track.title);
   const firstArtist = norm(track.artist.split(",")[0] ?? "");
   const unwanted = ["cover", "live", "remix", "karaoke", "instrumental", "sped up", "slowed", "8d"].filter(
@@ -40,5 +47,5 @@ export function pickBestMatch(
     return s;
   };
 
-  return [...candidates].sort((a, b) => score(b) - score(a))[0];
+  return [...candidates].sort((a, b) => score(b) - score(a));
 }

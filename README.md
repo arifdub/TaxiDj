@@ -140,20 +140,17 @@ Quota notes: a search costs about 101 units (`search.list` plus one `videos.list
 
 Accepted links: `youtube.com/watch?v=…`, `m.youtube.com`, `youtu.be/…`, `/shorts/…`, `/embed/…`, `/live/…`, and `music.youtube.com/watch?v=…`. Links on any other domain are rejected. Playlist-only links are politely declined.
 
-## 6b. Spotify search (optional)
+## 6b. Spotify (optional)
 
-Riders and drivers get a **Spotify** tab, where they search Spotify or paste a Spotify song link. A Spotify pick is stored with its Spotify track **and** its best YouTube match (chosen by `src/lib/music/match.ts` using title, artist and duration):
+Riders and drivers get a **Spotify** tab whenever `YOUTUBE_API_KEY` is set. Spotify picks play through a matching YouTube video, so they work with the in-app player, **Play all in YouTube playlist** and background play. Each card also gets a green **Spotify** button that opens the exact track in the Spotify app.
 
-- It plays like any other song: in-app player, **Play all in YouTube playlist**, and background play in the YouTube app.
-- Its queue card also has a green **Spotify** button that opens the exact track in the Spotify app.
+**Without Spotify keys (default, no Spotify developer account or Premium needed):** riders paste a Spotify **song link** (in Spotify: ⋯ / Share → Copy link). Taxi DJ reads the song title from Spotify's public link preview (oEmbed, `/api/spotify/link`), shows the top YouTube versions (`/api/music/match?list=1`), and the rider picks one. Playlist and album links are politely rejected.
 
-Setup:
+**With Spotify keys (optional):** riders can also *search* Spotify, and picks are matched to YouTube automatically using title, artist and duration (`src/lib/music/match.ts`).
+1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → **Create app** (Web API). Spotify may require the account to meet its current developer requirements (e.g. Premium).
+2. Set `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` (server only) and redeploy.
 
-1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → **Create app**. Tick **Web API**. The Redirect URI can be your site URL; it isn't used.
-2. Copy the **Client ID** and **Client Secret** into `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` (server only), then redeploy.
-3. `YOUTUBE_API_KEY` is also required, because each Spotify pick uses one YouTube search (about 100 quota units) to find the match.
-
-Taxi DJ only reads Spotify track metadata (Client Credentials flow, no user sign-in) and shows "Listen on Spotify" links. It never streams Spotify audio.
+Each Spotify pick uses one YouTube search (about 100 quota units). Taxi DJ only reads track metadata and shows "Listen on Spotify" links. It never streams Spotify audio.
 
 ## 7. Run locally
 

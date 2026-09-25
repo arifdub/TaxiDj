@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { isYouTubeSearchConfigured, searchVideos, YouTubeError } from "@/lib/youtube/service";
-import { pickBestMatch } from "@/lib/music/match";
+import { rankMatches } from "@/lib/music/match";
 
-// GET /api/music/match?title=&artist=&duration= — finds the YouTube video for a
+// GET /api/music/match?title=&artist=&duration= — finds the YouTube video(s) for a
 // Spotify track so it can play through YouTube (in-app player / YouTube app).
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
@@ -17,10 +17,11 @@ export async function GET(req: Request) {
   }
   try {
     const candidates = await searchVideos(`${artist} ${title}`.trim(), 5);
-    const video = pickBestMatch(candidates, { title, artist, durationSeconds: duration });
-    if (!video) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    const ranked = rankMatches(candidates, { title, artist, durationSeconds: duration });
+    if (!ranked.length) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    // ?list=1 returns the ranked choices so the rider can pick the right version.
     return NextResponse.json(
-      { video },
+      { video: ranked[0], videos: ranked },
       { headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" } },
     );
   } catch (err) {
