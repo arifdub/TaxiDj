@@ -331,6 +331,26 @@ select pg_temp.expect_error($q$select public.passenger_remove_request((select v:
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
 select pg_temp.expect_error($q$select public.driver_send_to_youtube((select v::uuid from ctx where k='ride'), array[]::uuid[])$q$, 'INVALID_TRANSITION');
 
+-- Driver adds songs ---------------------------------------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+select public.update_driver_settings('Arif''s Car', false, 1);  -- approval on, limit 1: driver bypasses both
+do $$
+declare r public.song_requests;
+begin
+  r := public.driver_add_song((select v::uuid from ctx where k='ride'), '9bZkp7q19f0', 'Gangnam Style', 'PSY');
+  assert r.status = 'queued', 'driver songs are queued without approval';
+  r := public.driver_add_song((select v::uuid from ctx where k='ride'), 'CevxZvSJLk8', 'Roar', 'Katy Perry');
+  assert (select nickname from public.passengers where id = r.passenger_id) = 'Driver', 'attributed to Driver';
+  assert (select count(*) from public.passengers where session_identifier = '00000000-0000-0000-0000-00000000000d'::uuid
+          and ride_id = (select v::uuid from ctx where k='ride')) = 1, 'one Driver row per ride';
+end $$;
+select pg_temp.expect_error($q$select public.driver_add_song((select v::uuid from ctx where k='ride'), '9bZkp7q19f0', 'dup')$q$, 'DUPLICATE_REQUEST');
+select pg_temp.expect_error($q$select public.driver_add_song((select v::uuid from ctx where k='ride'), 'bad', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+select pg_temp.expect_error($q$select public.driver_add_song((select v::uuid from ctx where k='ride'), 'y6120QOlsfU', 'x')$q$, 'RIDE_NOT_FOUND');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+select public.update_driver_settings('Arif''s Car', true, 20);
+
 -- New drivers default to 10 songs per passenger
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
 do $$ begin

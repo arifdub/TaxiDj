@@ -18,7 +18,11 @@ const POLL_MS = 30_000;
  */
 export function useRide(
   rideId: string | null,
-  opts: { withPassengers?: boolean; onNewRequests?: (items: QueueItem[]) => void } = {},
+  opts: {
+    withPassengers?: boolean;
+    /** Called with newly arrived requests, plus the ride and passengers they came with. */
+    onNewRequests?: (items: QueueItem[], ctx: { ride: Ride; passengers: Passenger[] }) => void;
+  } = {},
 ) {
   const [ride, setRide] = useState<Ride | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -57,7 +61,7 @@ export function useRide(
         const fresh = q.filter(
           (item) => !known.has(item.id) && (item.status === "pending" || item.status === "queued"),
         );
-        if (fresh.length) onNewRef.current?.(fresh);
+        if (fresh.length) onNewRef.current?.(fresh, { ride: r, passengers: p });
       }
       knownIds.current = new Set(q.map((item) => item.id));
     } catch (err) {

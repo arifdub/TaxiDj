@@ -83,6 +83,24 @@ export async function skip(rideId: string, direction: "next" | "previous") {
   return row && row.id ? row : null;
 }
 
+/** Driver adds a song to their own ride (no limit, no approval). */
+export const driverAddSong = (req: {
+  rideId: string;
+  videoId: string;
+  title: string;
+  artist: string | null;
+  durationSeconds: number | null;
+  source: RequestSource;
+}) =>
+  rpc<SongRequest>("driver_add_song", {
+    p_ride_id: req.rideId,
+    p_video_id: req.videoId,
+    p_title: req.title,
+    p_artist: req.artist,
+    p_duration_seconds: req.durationSeconds,
+    p_source: req.source,
+  });
+
 /** Hand a batch of songs to the YouTube app; the first becomes "playing". */
 export const sendToYouTube = (rideId: string, requestIds: string[]) =>
   rpc<SongRequest[]>("driver_send_to_youtube", { p_ride_id: rideId, p_request_ids: requestIds });

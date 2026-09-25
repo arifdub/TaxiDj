@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Maximize2, QrCode as QrIcon, Share2 } from "lucide-react";
+import { ChevronRight, Maximize2, Plus, QrCode as QrIcon, Share2 } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
 import { NowPlayingCard } from "@/components/driver/NowPlayingCard";
 import { QueueCard } from "@/components/driver/QueueCard";
@@ -31,6 +31,13 @@ export default function RideDashboard() {
           <h2 id="up-next" className="text-xs font-black uppercase tracking-widest text-taxi">
             Up next {waiting.length > 0 && <span className="text-mist">({waiting.length})</span>}
           </h2>
+          <div className="flex items-center gap-1">
+          <Link
+            href={`/driver/ride/${ride.id}/add`}
+            className="flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-bold text-taxi hover:bg-white/5"
+          >
+            <Plus className="size-4" aria-hidden /> Add song
+          </Link>
           {waiting.length > 0 && (
             <Link
               href={`/driver/ride/${ride.id}/queue`}
@@ -39,6 +46,7 @@ export default function RideDashboard() {
               Manage queue <ChevronRight className="size-4" aria-hidden />
             </Link>
           )}
+          </div>
         </div>
         {waiting.length === 0 ? (
           <EmptyState icon={<QrIcon className="size-7" />} title="Your queue is empty.">

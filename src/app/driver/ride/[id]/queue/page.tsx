@@ -1,6 +1,7 @@
 "use client";
 
-import { QrCode as QrIcon } from "lucide-react";
+import Link from "next/link";
+import { Plus, QrCode as QrIcon } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
 import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { QueueCard } from "@/components/driver/QueueCard";
@@ -28,9 +29,17 @@ export default function QueuePage() {
   return (
     <div className="space-y-6 pb-6">
       <div>
+        <div className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-black tracking-tight">
           Ride queue <span className="text-mist">({songs.length})</span>
         </h1>
+          <Link
+            href={`/driver/ride/${ride.id}/add`}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-2xl bg-taxi px-4 font-black text-ink hover:bg-taxi-light"
+          >
+            <Plus className="size-5" aria-hidden /> Add song
+          </Link>
+        </div>
         {songs.length > 0 && (
           <p className="text-sm text-mist">
             {plural(waiting.length, "song")} waiting · newest on top · songs stay until removed or the ride ends

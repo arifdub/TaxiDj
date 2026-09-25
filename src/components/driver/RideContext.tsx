@@ -21,6 +21,8 @@ interface RideContextValue {
   /** Hand songs to the YouTube app as one batch (see driver_send_to_youtube). */
   sendToYouTube: (requestIds: string[]) => Promise<void>;
   confirmEnd: () => void;
+  /** Reload the ride's queue now. */
+  refresh: () => Promise<void>;
 }
 
 const RideContext = createContext<RideContextValue | null>(null);
@@ -103,8 +105,9 @@ export function DriverRideProvider({
       endRide: () => run("end", () => apiEndRide(ride.id)),
       sendToYouTube: (ids) => run("send", () => apiSendToYouTube(ride.id, ids)),
       confirmEnd,
+      refresh,
     }),
-    [ride, queue, passengers, live, busy, error, run, remove, confirmEnd],
+    [ride, queue, passengers, live, busy, error, run, remove, confirmEnd, refresh],
   );
 
   return <RideContext.Provider value={value}>{children}</RideContext.Provider>;

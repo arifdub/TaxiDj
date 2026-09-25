@@ -16,7 +16,7 @@ import { useRide } from "@/hooks/useRide";
 import { endRide } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { isRideOpen } from "@/lib/ride";
-import type { QueueItem, Ride } from "@/lib/types";
+import type { Passenger, QueueItem, Ride } from "@/lib/types";
 
 export default function DriverRideLayout({ children }: { children: ReactNode }) {
   return <DriverGate>{() => <RideFrame>{children}</RideFrame>}</DriverGate>;
@@ -30,9 +30,15 @@ function RideFrame({ children }: { children: ReactNode }) {
   const [ending, setEnding] = useState(false);
   const [endError, setEndError] = useState<string | null>(null);
 
-  const onNewRequests = useCallback((items: QueueItem[]) => {
-    setIncoming((prev) => [...prev, ...items].slice(-3));
-  }, []);
+  // Songs the driver added themselves don't need a "new request" alert.
+  const onNewRequests = useCallback(
+    (items: QueueItem[], { ride: r, passengers }: { ride: Ride; passengers: Passenger[] }) => {
+      const driverRows = new Set(passengers.filter((p) => p.session_identifier === r.driver_id).map((p) => p.id));
+      const fromRiders = items.filter((i) => !driverRows.has(i.passenger_id));
+      if (fromRiders.length) setIncoming((prev) => [...prev, ...fromRiders].slice(-3));
+    },
+    [],
+  );
   const data = useRide(id, { withPassengers: true, onNewRequests });
   const confirmEnd = useCallback(() => setConfirming(true), []);
 
@@ -81,7 +87,7 @@ function RideFrame({ children }: { children: ReactNode }) {
     <DriverRideProvider data={{ ...data, ride }} confirmEnd={confirmEnd}>
       <div className="min-h-dvh bg-ink pb-28 text-white">
         <div className="mx-auto w-full max-w-lg px-4 safe-top md:max-w-3xl">
-          <RideHeader ride={ride} passengers={data.passengers.length} live={data.live} />
+          <RideHeader ride={ride} passengers={data.passengers.filter((p) => p.session_identifier !== ride.driver_id).length} live={data.live} />
           <PlayerProvider>{children}</PlayerProvider>
         </div>
       </div>
