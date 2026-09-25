@@ -12,9 +12,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ArrowLeftRight, ExternalLink, Hand, Maximize2, Minimize2, Music2, Pause, Play, SkipForward, TriangleAlert, X } from "lucide-react";
+import { ExternalLink, GripHorizontal, Hand, Maximize2, Minimize2, Music2, PanelBottom, Pause, Play, SkipForward, TriangleAlert, X } from "lucide-react";
 import { useDriverRide } from "@/components/driver/RideContext";
-import { useDockLayout, type DockLayout } from "@/hooks/useDockLayout";
+import { useDockLayout, type DockLayout, type DockPosition } from "@/hooks/useDockLayout";
 import { usePlaybackMode } from "@/hooks/usePlaybackMode";
 import type { PlaybackMode } from "@/lib/playback";
 import { loadYouTubeIframeApi, YT_STATE, type YTPlayer } from "@/lib/playback/youtube-iframe";
@@ -91,8 +91,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [ready, setReady] = useState(false);
-  // Docked player position (bar / left corner / right corner) and "closed".
-  const [dockLayout, setDockLayout] = useDockLayout();
+  // Docked player: full-width bar or floating window (+ its position), and "closed".
+  const { layout: dockLayout, setLayout: setDockLayout, position: savedPosition, setPosition } = useDockLayout();
+  const sectionRef = useRef<HTMLElement>(null);
+  const drag = useFloatingDrag(sectionRef, savedPosition, setPosition);
   const [closed, setClosed] = useState(false);
   const [apiUnavailable, setApiUnavailable] = useState(false);
   const [status, setStatus] = useState<PlayerStatus>("idle");
@@ -356,15 +358,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const active = status === "playing" || status === "paused" || status === "buffering";
   const audible = status === "playing" || status === "buffering";
   const showSurface = embedded && (onPlayerRoute || Boolean(current) || active);
-  // Outside the Player tab the player docks above the tabs: a full-width bar
-  // or a small corner player. YouTube requires a playing video to stay
-  // visible (at least 200×200), so "close" stops playback before hiding.
+  // Outside the Player tab the player docks above the tabs as a full-width
+  // bar, or floats as a small window the driver can drag anywhere. YouTube
+  // requires a playing video to stay visible (at least 200×200), so "close"
+  // stops playback before hiding.
   const docked = showSurface && !onPlayerRoute;
   const isClosed = docked && closed && !audible;
-  const corner = dockLayout !== "bar";
+  const floating = dockLayout === "float";
   const dock: DockControls = {
     layout: dockLayout,
     setLayout: setDockLayout,
+    drag,
     close: () => {
       playerRef.current?.stopVideo();
       setClosed(true);
@@ -376,20 +380,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <PlayerContext.Provider value={value}>
       {embedded && (
         <section
+          ref={sectionRef}
           aria-label="Music player"
           className={
             !showSurface || isClosed
               ? "hidden"
               : onPlayerRoute
                 ? "mb-5 flex justify-center"
-                : corner
-                  ? `fixed z-30 flex w-[216px] flex-col gap-2 rounded-3xl border border-line bg-night-2/95 p-2 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur ${
-                      dockLayout === "left" ? "left-2" : "right-2"
+                : floating
+                  ? `fixed z-30 flex w-[216px] flex-col gap-2 rounded-3xl border bg-night-2/95 p-2 pt-0 shadow-[0_10px_40px_-5px_rgba(0,0,0,0.85)] backdrop-blur ${
+                      drag.dragging ? "border-taxi" : "border-line"
                     }`
                   : "fixed inset-x-2 z-30 mx-auto flex max-w-lg items-stretch gap-3 rounded-3xl border border-line bg-night-2/95 p-2 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur md:max-w-3xl"
           }
-          style={docked ? bottom : undefined}
+          style={!docked ? undefined : floating ? floatStyle(drag.position) : bottom}
         >
+          {docked && floating && <FloatHandle current={current} dock={dock} />}
           {/*
             Music-player layout: the official YouTube player is kept small,
             like album art. YouTube's API policies require it to stay visible
@@ -400,10 +406,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               onPlayerRoute ? "size-64 shadow-[0_20px_60px_-20px_rgba(255,200,0,0.45)]" : "size-[200px]"
             }`}
           >
-            <div ref={hostRef} className="absolute inset-0 [&>iframe]:size-full" />
+            <div ref={hostRef} className={`absolute inset-0 [&>iframe]:size-full ${drag.dragging ? "pointer-events-none" : ""}`} />
             <PlayerOverlay current={current} />
           </div>
-          {!onPlayerRoute && (corner ? <CornerControls current={current} dock={dock} /> : <DockBar current={current} dock={dock} />)}
+          {!onPlayerRoute && (floating ? <FloatControls current={current} dock={dock} /> : <DockBar current={current} dock={dock} />)}
         </section>
       )}
       {isClosed && (
@@ -418,7 +424,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       )}
       {children}
       {/* Room so the last items can scroll above the docked player. */}
-      {docked && <div aria-hidden className={isClosed ? "h-16" : corner ? "h-[17rem]" : "h-56"} />}
+      {docked && <div aria-hidden className={isClosed ? "h-16" : floating ? "h-4" : "h-56"} />}
     </PlayerContext.Provider>
   );
 }
@@ -512,6 +518,7 @@ function Overlay({ children }: { children: ReactNode }) {
 interface DockControls {
   layout: DockLayout;
   setLayout: (layout: DockLayout) => void;
+  drag: FloatingDrag;
   /** Stop playback and hide the docked player. */
   close: () => void;
 }
@@ -544,7 +551,7 @@ function DockBar({ current, dock }: { current: SongRequest | null; dock: DockCon
       <div className="flex items-start justify-between gap-1">
         <p className="pt-2 text-[11px] font-black uppercase tracking-widest text-taxi max-[380px]:hidden">Now playing</p>
         <div className="-mr-1 flex">
-          <button type="button" onClick={() => dock.setLayout("right")} aria-label="Minimize player to the corner" className={small}>
+          <button type="button" onClick={() => dock.setLayout("float")} aria-label="Minimize to a floating player" className={small}>
             <Minimize2 className="size-4" aria-hidden />
           </button>
           <button type="button" onClick={dock.close} aria-label="Close player (stops the music)" className={small}>
@@ -578,8 +585,9 @@ function DockBar({ current, dock }: { current: SongRequest | null; dock: DockCon
   );
 }
 
-/** Compact controls under the corner player. */
-function CornerControls({ current, dock }: { current: SongRequest | null; dock: DockControls }) {
+/** Compact controls under the floating player. */
+function FloatControls({ current, dock }: { current: SongRequest | null; dock: DockControls }) {
+  const { ride } = useDriverRide();
   const { playing, next, toggle, goNext } = usePlayPause(current);
   const btn = "grid size-9 shrink-0 place-items-center rounded-full";
   return (
@@ -590,20 +598,123 @@ function CornerControls({ current, dock }: { current: SongRequest | null; dock: 
       <button type="button" onClick={goNext} disabled={!next && !current} aria-label="Next song" className={`${btn} bg-night-3 text-white disabled:opacity-40`}>
         <SkipForward className="size-4 fill-current" aria-hidden />
       </button>
-      <button
-        type="button"
-        onClick={() => dock.setLayout(dock.layout === "left" ? "right" : "left")}
-        aria-label={`Move player to the ${dock.layout === "left" ? "right" : "left"}`}
-        className={`${btn} bg-night-3 text-white`}
-      >
-        <ArrowLeftRight className="size-4" aria-hidden />
-      </button>
-      <button type="button" onClick={() => dock.setLayout("bar")} aria-label="Expand player to full bar" className={`${btn} bg-night-3 text-white`}>
+      <Link href={`/driver/ride/${ride.id}/player`} aria-label="Open full player" className={`${btn} bg-night-3 text-white`}>
         <Maximize2 className="size-4" aria-hidden />
+      </Link>
+      <button type="button" onClick={() => dock.setLayout("bar")} aria-label="Dock player as a bar at the bottom" className={`${btn} bg-night-3 text-white`}>
+        <PanelBottom className="size-4" aria-hidden />
       </button>
       <button type="button" onClick={dock.close} aria-label="Close player (stops the music)" className={`${btn} bg-night-3 text-white`}>
         <X className="size-4" aria-hidden />
       </button>
     </div>
   );
+}
+
+/** Drag bar on top of the floating player (also moves with arrow keys). */
+function FloatHandle({ current, dock }: { current: SongRequest | null; dock: DockControls }) {
+  return (
+    <div
+      {...dock.drag.handleProps}
+      role="button"
+      tabIndex={0}
+      aria-roledescription="drag handle"
+      aria-label="Move player (drag, or use the arrow keys)"
+      className={`-mx-2 flex min-h-9 cursor-grab touch-none select-none items-center gap-1.5 rounded-t-3xl px-3 pt-1 active:cursor-grabbing ${
+        dock.drag.dragging ? "text-taxi" : "text-mist"
+      }`}
+    >
+      <GripHorizontal className="size-4 shrink-0" aria-hidden />
+      <p className="min-w-0 truncate text-xs font-semibold">{current?.title ?? "Taxi DJ player"}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Floating player position
+
+const FLOAT_MARGIN = 8;
+
+/**
+ * Place the floating player inside the screen. x / y are fractions of the
+ * free space, so it stays on screen when the phone rotates.
+ */
+function floatStyle({ x, y }: DockPosition): React.CSSProperties {
+  return {
+    left: `calc(${FLOAT_MARGIN}px + (100% - ${FLOAT_MARGIN * 2}px) * ${x})`,
+    top: `calc(${FLOAT_MARGIN}px + (100% - ${FLOAT_MARGIN * 2}px) * ${y})`,
+    transform: `translate(${-x * 100}%, ${-y * 100}%)`,
+  };
+}
+
+interface FloatingDrag {
+  position: DockPosition;
+  dragging: boolean;
+  handleProps: Pick<
+    React.HTMLAttributes<HTMLElement>,
+    "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onKeyDown"
+  >;
+}
+
+function useFloatingDrag(
+  ref: React.RefObject<HTMLElement | null>,
+  saved: DockPosition,
+  save: (p: DockPosition) => void,
+): FloatingDrag {
+  const [live, setLive] = useState<DockPosition | null>(null);
+  const start = useRef<{ id: number; px: number; py: number; left: number; top: number; w: number; h: number } | null>(null);
+  const position = live ?? saved;
+
+  const toFraction = (left: number, top: number, w: number, h: number): DockPosition => {
+    const freeX = window.innerWidth - w - FLOAT_MARGIN * 2;
+    const freeY = window.innerHeight - h - FLOAT_MARGIN * 2;
+    const f = (v: number, free: number) => (free > 0 ? Math.min(1, Math.max(0, (v - FLOAT_MARGIN) / free)) : 0);
+    return { x: f(left, freeX), y: f(top, freeY) };
+  };
+
+  return {
+    position,
+    dragging: live !== null,
+    handleProps: {
+      onPointerDown: (e) => {
+        const el = ref.current;
+        if (!el || (e.pointerType === "mouse" && e.button !== 0)) return;
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const r = el.getBoundingClientRect();
+        start.current = { id: e.pointerId, px: e.clientX, py: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height };
+        setLive(saved);
+      },
+      onPointerMove: (e) => {
+        const s = start.current;
+        if (!s || s.id !== e.pointerId) return;
+        setLive(toFraction(s.left + e.clientX - s.px, s.top + e.clientY - s.py, s.w, s.h));
+      },
+      onPointerUp: (e) => {
+        if (start.current?.id !== e.pointerId) return;
+        start.current = null;
+        if (live) save(live);
+        setLive(null);
+      },
+      onPointerCancel: () => {
+        start.current = null;
+        setLive(null);
+      },
+      onKeyDown: (e) => {
+        const step = 24;
+        const moves: Record<string, [number, number]> = {
+          ArrowLeft: [-step, 0],
+          ArrowRight: [step, 0],
+          ArrowUp: [0, -step],
+          ArrowDown: [0, step],
+        };
+        const m = moves[e.key];
+        const el = ref.current;
+        if (!m || !el) return;
+        e.preventDefault();
+        const r = el.getBoundingClientRect();
+        save(toFraction(r.left + m[0], r.top + m[1], r.width, r.height));
+      },
+    },
+  };
 }
