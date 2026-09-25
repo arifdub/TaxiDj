@@ -1,11 +1,11 @@
 "use client";
 
-// YouTube search + paste-a-link panels, shared by the passenger "Add music"
+// Music search (official YouTube Data API) + paste-a-link panels, shared by the passenger "Add music"
 // screen and the driver's "Add song" screen. Light theme; the driver screen
 // shows them on a white card.
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Check, Music, Plus, Search, X } from "lucide-react";
 import { Button, Notice, SongSkeleton, Spinner, Thumbnail, YouTubeIcon } from "@/components/ui";
 import { friendlyError } from "@/lib/errors";
 import { formatDuration } from "@/lib/format";
@@ -77,13 +77,13 @@ export function SearchPanel({
         setError(
           data.error === "RATE_LIMITED"
             ? "You're searching a little fast. Please wait a moment and try again."
-            : "YouTube search is unavailable right now. You can still paste a YouTube link.",
+            : "Music search is unavailable right now. You can still paste a YouTube link.",
         );
         return;
       }
       setResults(data.results);
     } catch (err) {
-      setError(friendlyError(err, "YouTube search is unavailable right now. You can still paste a YouTube link."));
+      setError(friendlyError(err, "Music search is unavailable right now. You can still paste a YouTube link."));
     } finally {
       setLoading(false);
     }
@@ -91,9 +91,12 @@ export function SearchPanel({
 
   return (
     <div>
+      <h2 className="mb-3 flex items-center gap-2 text-lg font-black">
+        <Music className="size-5 text-taxi-dark" aria-hidden /> Search Music
+      </h2>
       <form onSubmit={search} role="search" className="flex gap-2">
         <label htmlFor="search" className="sr-only">
-          Search YouTube
+          Search music
         </label>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-zinc-400" aria-hidden />
@@ -103,14 +106,14 @@ export function SearchPanel({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search YouTube…"
+            placeholder="Song or artist…"
             enterKeyHint="search"
             autoComplete="off"
             maxLength={100}
             className="h-14 w-full rounded-2xl border-2 border-zinc-200 bg-zinc-50 pl-12 pr-4 text-lg focus:border-taxi-dark focus:bg-white focus:outline-none"
           />
         </div>
-        <Button type="submit" className="px-5" aria-label="Search" loading={loading}>
+        <Button type="submit" className="px-5" aria-label="Search music" loading={loading}>
           {!loading && <Search className="size-5" aria-hidden />}
         </Button>
       </form>
@@ -123,20 +126,29 @@ export function SearchPanel({
         ) : results?.length === 0 ? (
           <p className="py-8 text-center text-zinc-500">No results. Try a different search.</p>
         ) : results ? (
-          <ul className="divide-y divide-zinc-100">
-            {results.map((v) => (
-              <ResultRow
-                key={v.videoId}
-                video={v}
-                onAdd={() => onAdd(v)}
-                adding={adding === v.videoId}
-                inQueue={inQueue.has(v.videoId)}
-                disabled={disabled || (adding !== null && adding !== v.videoId)}
-              />
-            ))}
-          </ul>
+          <section aria-label="Music results">
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Music results</h3>
+              {/* Attribution: results come from the official YouTube Data API. */}
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-zinc-500">
+                from <YouTubeIcon className="h-3 w-auto" />
+              </span>
+            </div>
+            <ul className="divide-y divide-zinc-100">
+              {results.map((v) => (
+                <ResultRow
+                  key={v.videoId}
+                  video={v}
+                  onAdd={() => onAdd(v)}
+                  adding={adding === v.videoId}
+                  inQueue={inQueue.has(v.videoId)}
+                  disabled={disabled || (adding !== null && adding !== v.videoId)}
+                />
+              ))}
+            </ul>
+          </section>
         ) : (
-          <p className="py-8 text-center text-zinc-500">Search for any song, artist or music video.</p>
+          <p className="py-8 text-center text-zinc-500">Search for any song or artist.</p>
         )}
       </div>
     </div>
@@ -158,19 +170,15 @@ function ResultRow({
 }) {
   return (
     <li className="flex items-center gap-3 py-3">
-      <div className="relative">
-        <Thumbnail src={video.thumbnailUrl} className="h-16 w-24" />
-        {video.durationSeconds ? (
-          <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 font-mono text-[10px] font-bold text-white">
-            {formatDuration(video.durationSeconds)}
-          </span>
-        ) : null}
-      </div>
+      <Thumbnail src={video.thumbnailUrl} className="h-16 w-24 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-sm font-bold leading-snug">{video.title}</p>
         <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-zinc-500">
           <YouTubeIcon className="h-3 w-auto shrink-0" /> {video.channel}
         </p>
+        {video.durationSeconds ? (
+          <p className="mt-0.5 font-mono text-xs font-semibold text-zinc-500">{formatDuration(video.durationSeconds)}</p>
+        ) : null}
       </div>
       {inQueue ? (
         <span className="flex min-h-11 items-center gap-1 rounded-xl bg-zinc-100 px-3 text-xs font-bold text-zinc-600">

@@ -139,7 +139,7 @@ function AddMusic() {
 
       <div role="tablist" aria-label="How to add music" className={`mt-5 grid ${spotifyConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
         <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="size-4" />}>
-          YouTube
+          Music
         </TabButton>
         {spotifyConfigured && (
           <TabButton active={tab === "spotify"} onClick={() => setTab("spotify")} icon={<SpotifyIcon className="size-4" />}>
@@ -165,7 +165,7 @@ function AddMusic() {
           ) : tab === "search" ? (
           searchConfigured === false ? (
             <Notice tone="info">
-              YouTube search isn&apos;t set up on this Taxi DJ yet.{" "}
+              Music search isn&apos;t set up on this Taxi DJ yet.{" "}
               <button type="button" className="font-bold underline" onClick={() => setTab("paste")}>
                 Paste a YouTube link instead
               </button>

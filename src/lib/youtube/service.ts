@@ -9,6 +9,7 @@ import "server-only";
 // No scraping, no media download.
 
 import type { VideoResult } from "@/lib/types";
+import { rankMusicResults, type MusicCandidate } from "./music-rank";
 import { isValidVideoId, parseIsoDuration, youTubeThumbnailUrl } from "./parse";
 
 const API = "https://www.googleapis.com/youtube/v3";
@@ -65,10 +66,14 @@ interface ApiVideo {
   id: string;
   snippet?: {
     title?: string;
+    description?: string;
     channelTitle?: string;
+    tags?: string[];
+    categoryId?: string;
     liveBroadcastContent?: string;
   };
   contentDetails?: { duration?: string };
+  player?: { embedWidth?: string | number; embedHeight?: string | number };
 }
 
 function toResult(v: ApiVideo): VideoResult {
@@ -81,14 +86,16 @@ function toResult(v: ApiVideo): VideoResult {
   };
 }
 
-async function videosById(ids: string[]): Promise<ApiVideo[]> {
+async function videosById(ids: string[], withPlayer = false): Promise<ApiVideo[]> {
   if (ids.length === 0) return [];
   const params = new URLSearchParams({
-    part: "snippet,contentDetails",
+    part: withPlayer ? "snippet,contentDetails,player" : "snippet,contentDetails",
     id: ids.join(","),
     maxResults: String(ids.length),
     key: apiKey(),
   });
+  // With a size limit, the API reports the player's aspect ratio (portrait = Shorts).
+  if (withPlayer) params.set("maxHeight", "360");
   const data = await getJson(`${API}/videos?${params}`);
   return (data.items ?? []) as ApiVideo[];
 }
@@ -116,6 +123,82 @@ export async function searchVideos(query: string, maxResults = 12): Promise<Vide
     .map((id) => byId.get(id))
     .filter((v): v is ApiVideo => Boolean(v) && v!.snippet?.liveBroadcastContent !== "live")
     .map(toResult);
+}
+
+// ------------------------------------------------------------ Music search
+
+const MUSIC_CATEGORY = "10";
+/** Candidates fetched from YouTube before local ranking. */
+const MUSIC_POOL = 25;
+/** Below this many music-category hits, also search all categories. */
+const MUSIC_MIN_HITS = 8;
+
+async function searchIds(query: string, extra: Record<string, string>) {
+  const params = new URLSearchParams({
+    part: "snippet",
+    type: "video",
+    q: query,
+    maxResults: String(MUSIC_POOL),
+    videoEmbeddable: "true",
+    safeSearch: "moderate",
+    order: "relevance",
+    regionCode: "IE",
+    relevanceLanguage: "en",
+    key: apiKey(),
+    ...extra,
+  });
+  const data = await getJson(`${API}/search?${params}`);
+  return (data.items ?? [])
+    .map((item: { id?: { videoId?: string } }) => item.id?.videoId)
+    .filter(isValidVideoId) as string[];
+}
+
+function isVertical(v: ApiVideo): boolean | null {
+  const w = Number(v.player?.embedWidth);
+  const h = Number(v.player?.embedHeight);
+  return w > 0 && h > 0 ? h > w : null;
+}
+
+/**
+ * Music-focused search for the "Search music" screen.
+ *
+ * Official YouTube Data API only: search.list in the Music category
+ * (videoCategoryId=10), then one videos.list call for durations, categories
+ * and player shape, then local ranking (see music-rank.ts). If the Music
+ * category returns few videos, a regular search tops up the pool; its
+ * results are ranked the same way. Every result is a normal YouTube video.
+ */
+export async function searchMusic(query: string, maxResults = 15): Promise<VideoResult[]> {
+  let ids = await searchIds(query, { videoCategoryId: MUSIC_CATEGORY });
+  if (ids.length < MUSIC_MIN_HITS) {
+    const more = await searchIds(query, {});
+    ids = [...new Set([...ids, ...more])].slice(0, MUSIC_POOL + MUSIC_MIN_HITS);
+  }
+
+  const details = await videosById(ids.slice(0, 50), true);
+  const byId = new Map(details.map((v) => [v.id, v]));
+  const candidates: (MusicCandidate & { video: ApiVideo })[] = [];
+  ids.forEach((id) => {
+    const v = byId.get(id);
+    const live = v?.snippet?.liveBroadcastContent;
+    if (!v || live === "live" || live === "upcoming") return;
+    candidates.push({
+      videoId: id,
+      title: decodeEntities(v.snippet?.title ?? ""),
+      description: v.snippet?.description ?? "",
+      channelTitle: decodeEntities(v.snippet?.channelTitle ?? ""),
+      tags: v.snippet?.tags ?? [],
+      categoryId: v.snippet?.categoryId ?? null,
+      durationSeconds: parseIsoDuration(v.contentDetails?.duration),
+      vertical: isVertical(v),
+      apiRank: candidates.length,
+      video: v,
+    });
+  });
+
+  return rankMusicResults(candidates, query)
+    .slice(0, maxResults)
+    .map((c) => toResult(c.video));
 }
 
 /**

@@ -6,7 +6,7 @@ Taxi DJ lets a taxi or private-hire driver start a ride and show a QR code. Pass
 
 ```
 Driver:     Start Ride → Show QR → Passenger joins → Song appears in queue → Manage → Play on YouTube
-Passenger:  Scan QR → Join → Search YouTube OR paste link → Add song → See request status
+Passenger:  Scan QR → Join → Search music OR paste link → Add song → See request status
 ```
 
 ---
@@ -26,7 +26,7 @@ Passenger:  Scan QR → Join → Search YouTube OR paste link → Add song → S
 | Passenger join | `/join/[code]` |
 | Passenger add music | `/join/[code]/music` |
 | Passenger requests | `/join/[code]/requests` |
-| YouTube search proxy (server) | `/api/youtube/search?q=` |
+| Music search (server, official YouTube Data API) | `/api/youtube/search?q=` |
 | YouTube link metadata (server) | `/api/youtube/video?id=` |
 
 **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase (Postgres, Auth, Realtime) · Vercel.
@@ -134,9 +134,16 @@ If the Supabase variables are missing, the app shows a friendly "Taxi DJ isn't c
 4. Restrict the key: **API restrictions → YouTube Data API v3**. It is only called from the server, so don't add HTTP-referrer restrictions.
 5. Set `YOUTUBE_API_KEY` in `.env.local` and in Vercel.
 
-Quota notes: a search costs about 101 units (`search.list` plus one `videos.list` for durations). The default quota is 10,000 units per day. Identical searches are cached on Vercel's CDN for an hour, and each IP is limited to 30 searches per minute (best effort, per server instance).
+**Music search.** Passenger search asks the official `search.list` for videos in YouTube's Music category (`videoCategoryId=10`, `regionCode=IE`, `relevanceLanguage=en`, `safeSearch=moderate`, `order=relevance`). The query is sent as typed. Because the category alone doesn't guarantee songs, results are then re-ranked locally (`src/lib/youtube/music-rank.ts`):
 
-**Without a key:** search shows "YouTube search isn't set up on this Taxi DJ yet" and switches to paste-link mode. Pasted links still work: their metadata comes from YouTube's official keyless **oEmbed** endpoint.
+- **Pushed up:** official video/audio, lyrics, full song, title track, label and artist channels (" - Topic", VEVO, T-Series, Sony Music…), "Provided to YouTube by" releases, and 2–10 minute durations.
+- **Pushed down:** reactions, reviews, interviews, news, trailers, scenes, tutorials, vlogs, gaming, and Shorts (portrait player, `#shorts`, very short).
+
+Nothing is removed, and a word the passenger typed (e.g. "reaction") is never penalised. Results stay normal YouTube videos. Nothing is downloaded, and audio is never separated from the video.
+
+Quota notes: a music search costs about 101 units (`search.list` plus one `videos.list` for durations, categories and player shape). If the Music category returns fewer than 8 videos, a second all-categories search tops it up (about 201 units in total). The default quota is 10,000 units per day. Identical searches are cached on Vercel's CDN for an hour, and each IP is limited to 30 searches per minute (best effort, per server instance).
+
+**Without a key:** search shows "Music search isn't set up on this Taxi DJ yet" and switches to paste-link mode. Pasted links still work: their metadata comes from YouTube's official keyless **oEmbed** endpoint.
 
 Accepted links: `youtube.com/watch?v=…`, `m.youtube.com`, `youtu.be/…`, `/shorts/…`, `/embed/…`, `/live/…`, and `music.youtube.com/watch?v=…`. Links on any other domain are rejected. Playlist-only links are politely declined.
 

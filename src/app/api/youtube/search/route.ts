@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
-import { isYouTubeSearchConfigured, searchVideos, YouTubeError } from "@/lib/youtube/service";
+import { isYouTubeSearchConfigured, searchMusic, YouTubeError } from "@/lib/youtube/service";
 
 // GET /api/youtube/search?q=blinding+lights
-// Proxies the official YouTube Data API so the API key stays on the server.
+// Music-focused search via the official YouTube Data API (Music category +
+// local ranking). Runs on the server so the API key stays secret.
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
 
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const results = await searchVideos(q);
+    const results = await searchMusic(q);
     return NextResponse.json(
       { results },
       // Identical searches are served from Vercel's CDN to save API quota.

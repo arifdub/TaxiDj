@@ -112,7 +112,7 @@ function MyRequests() {
             title="No songs added yet."
             action={<ButtonLink href={`/join/${code}/music`}>Add a song</ButtonLink>}
           >
-            Search YouTube and add your first song.
+            Search music and add your first song.
           </EmptyState>
         ) : (
           <ol className="space-y-3">
