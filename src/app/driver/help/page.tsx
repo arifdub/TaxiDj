@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import { DriverShell } from "@/components/driver/DriverShell";
 
-export const metadata: Metadata = { title: "Help" };
+export const metadata: Metadata = {
+  title: "How Taxi DJ works – Help for drivers",
+  description:
+    "Step-by-step guide for drivers: start a ride, show the QR code, let passengers add songs, manage the queue and play music through YouTube, Bluetooth or CarPlay.",
+  alternates: { canonical: "/driver/help" },
+};
 
 const steps = [
   ["Start a ride", "Tap START A RIDE. Taxi DJ creates a unique join code and QR code."],
   ["Show the QR code", "Passengers scan it with their phone camera or visit the link and enter the code. No app install needed."],
-  ["Passengers add songs", "They search YouTube or paste a YouTube / YouTube Music link. Each passenger can add a limited number of songs."],
+  ["Passengers add songs", "They search for music or paste a YouTube, YouTube Music or Spotify link. Each passenger can add a limited number of songs."],
   ["Manage the queue", "New requests appear instantly. Play, reorder, approve or remove songs with large, simple controls."],
-  ["Play on YouTube", "Tapping play opens the song in the YouTube or YouTube Music app, which plays through CarPlay and your car speakers."],
+  ["Play the music", "Play the queue in Taxi DJ's built-in player, or tap Play all in YouTube playlist to play it in the YouTube app through Bluetooth, CarPlay and your car speakers."],
   ["End the ride", "When the trip is over, tap END RIDE. The QR code stops working and passengers can't add more songs."],
 ];
 

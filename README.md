@@ -243,3 +243,17 @@ The site includes a web app manifest (`/manifest.webmanifest`), generated PNG ic
 ## Safety
 
 The driver UI uses big touch targets, high contrast, minimal text and no flashing animation, and it respects reduced-motion settings. Only interact with the app when it's safe and legal to do so.
+
+## Search engines (SEO)
+
+- **What Google sees:** the home page includes a server-rendered "About Taxi DJ" section (what it is, how it works, features, FAQ). It's hidden once a driver signs in. The section is in `src/components/AboutTaxiDj.tsx`, and the shared title, description and keywords are in `src/lib/site.ts`.
+- **Files for search engines:**
+  - `/robots.txt` and `/sitemap.xml` come from `src/app/robots.ts` and `src/app/sitemap.ts`.
+  - `/opengraph-image` is the link-preview picture.
+  - The home page carries WebSite, WebApplication and FAQPage structured data (JSON-LD).
+- **What's indexed:** the home page and `/driver/help`. Ride, passenger, account and API pages are blocked from crawling, and the passenger join pages are also marked `noindex`.
+- **Site address:** set `NEXT_PUBLIC_SITE_URL` (e.g. `https://taxidj.app`) in Vercel. Without it, Vercel's production domain is used.
+- **Google Search Console:**
+  - A **Domain** property is verified with a DNS TXT record.
+  - A **URL prefix** property can use the HTML-tag method: put the tag's `content` value in `GOOGLE_SITE_VERIFICATION` and redeploy.
+  - After verifying, submit `https://<your-domain>/sitemap.xml`.
