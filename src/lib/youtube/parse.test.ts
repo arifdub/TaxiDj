@@ -58,9 +58,6 @@ describe("youTubeQueueUrl", () => {
     expect(youTubeQueueUrl(["fHI8X4OXluQ", "bad", "JGwWNGJdvx8"])).toBe(
       "https://www.youtube.com/watch_videos?video_ids=fHI8X4OXluQ,JGwWNGJdvx8",
     );
-    expect(youTubeQueueUrl(["fHI8X4OXluQ"], "youtube_music")).toBe(
-      "https://music.youtube.com/watch_videos?video_ids=fHI8X4OXluQ",
-    );
     expect(youTubeQueueUrl([])).toBeNull();
     const many = Array.from({ length: 60 }, () => "fHI8X4OXluQ");
     expect(youTubeQueueUrl(many)!.split(",")).toHaveLength(50);

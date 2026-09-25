@@ -81,18 +81,15 @@ export function youTubeWatchUrl(videoId: string, source: RequestSource = "youtub
 export const MAX_QUEUE_LINK_VIDEOS = 50;
 
 /**
- * An official YouTube link that plays several videos back-to-back as a
- * temporary playlist. Opened in the YouTube app (or youtube.com while signed
- * in), YouTube handles autoplay and — for Premium members — background play.
+ * A YouTube link that plays several videos back-to-back as a temporary
+ * playlist. Opened in the YouTube app (or youtube.com while signed in),
+ * YouTube handles autoplay and, for Premium members, background play.
  */
-export function youTubeQueueUrl(
-  videoIds: string[],
-  target: RequestSource = "youtube",
-): string | null {
+export function youTubeQueueUrl(videoIds: string[]): string | null {
   const ids = videoIds.filter(isValidVideoId).slice(0, MAX_QUEUE_LINK_VIDEOS);
   if (ids.length === 0) return null;
-  const host = target === "youtube_music" ? "music.youtube.com" : "www.youtube.com";
-  return `https://${host}/watch_videos?video_ids=${ids.join(",")}`;
+  // Only youtube.com supports this; music.youtube.com ignores it.
+  return `https://www.youtube.com/watch_videos?video_ids=${ids.join(",")}`;
 }
 
 export function youTubeThumbnailUrl(videoId: string) {

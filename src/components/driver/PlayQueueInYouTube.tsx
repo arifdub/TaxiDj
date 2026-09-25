@@ -1,11 +1,11 @@
 "use client";
 
-import { CircleCheck, ListVideo, Music2, RotateCcw } from "lucide-react";
+import { CircleCheck, ListVideo, RotateCcw } from "lucide-react";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { plural } from "@/lib/format";
 import { nowPlaying } from "@/lib/queue";
-import type { QueueItem, RequestSource } from "@/lib/types";
+import type { QueueItem } from "@/lib/types";
 import { MAX_QUEUE_LINK_VIDEOS, youTubeQueueUrl } from "@/lib/youtube/parse";
 
 /**
@@ -57,7 +57,7 @@ export function PlayQueueInYouTube() {
               </>
             ) : (
               <>
-                Sends {plural(batch.length, "song")} to YouTube as one playlist. It plays them
+                Sends {plural(batch.length, "song")} to the YouTube app as one playlist. It plays them
                 back-to-back, even with the screen locked and through CarPlay.
               </>
             )}
@@ -112,30 +112,24 @@ function SendButtons({
   onSend: () => void;
   subtle?: boolean;
 }) {
-  const ids = batch.map((q) => q.youtube_video_id);
-  const link = (target: RequestSource) => youTubeQueueUrl(ids, target)!;
-  const secondary =
-    "flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-play/50 px-4 text-sm font-bold text-white hover:bg-play/15";
-
+  // YouTube Music doesn't accept multi-song playlist links, so batches go to
+  // the YouTube app. (Single songs can still open in YouTube Music from the
+  // queue cards.)
+  const href = youTubeQueueUrl(batch.map((q) => q.youtube_video_id))!;
   return (
-    <div className="mt-3 grid gap-2">
-      <a
-        href={link("youtube_music")}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={onSend}
-        className={
-          subtle
-            ? secondary
-            : "flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-play px-4 font-black text-white hover:bg-violet-400"
-        }
-      >
-        {subtle ? <RotateCcw className="size-4" aria-hidden /> : <Music2 className="size-5" aria-hidden />}
-        {label} YouTube Music
-      </a>
-      <a href={link("youtube")} target="_blank" rel="noopener noreferrer" onClick={onSend} className={secondary}>
-        <ListVideo className="size-4" aria-hidden /> {label} YouTube
-      </a>
-    </div>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onSend}
+      className={`mt-3 flex items-center justify-center gap-2 rounded-2xl px-4 ${
+        subtle
+          ? "min-h-12 border border-play/50 text-sm font-bold text-white hover:bg-play/15"
+          : "min-h-14 bg-play font-black text-white hover:bg-violet-400"
+      }`}
+    >
+      {subtle ? <RotateCcw className="size-4" aria-hidden /> : <ListVideo className="size-5" aria-hidden />}
+      {label} YouTube
+    </a>
   );
 }
