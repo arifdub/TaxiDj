@@ -351,6 +351,26 @@ select pg_temp.expect_error($q$select public.driver_add_song((select v::uuid fro
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
 select public.update_driver_settings('Arif''s Car', true, 20);
 
+-- Spotify picks -----------------------------------------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+do $$
+declare r public.song_requests;
+begin
+  r := public.driver_add_song((select v::uuid from ctx where k='ride'), 'y6120QOlsfU', 'Sandstorm', 'Darude', 225, 'youtube', '6habFhsOp2NvshLv26DqMb');
+  assert r.spotify_url = 'https://open.spotify.com/track/6habFhsOp2NvshLv26DqMb', 'spotify url derived';
+end $$;
+select pg_temp.expect_error($q$select public.driver_add_song((select v::uuid from ctx where k='ride'), 'hTWKbfoikeg', 'x', null, null, 'youtube', 'bad id!')$q$, 'INVALID_VIDEO');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+do $$
+declare r public.song_requests;
+begin
+  r := public.add_song_request((select v::uuid from ctx where k='ride'), 'hTWKbfoikeg', 'Smells Like Teen Spirit', 'Nirvana', 301, 'youtube', '4CeeEOM32jQcH3eN9Q2dGj');
+  assert r.spotify_track_id = '4CeeEOM32jQcH3eN9Q2dGj', 'passenger spotify pick stored';
+  r := public.add_song_request((select v::uuid from ctx where k='ride'), 'ZbZSe6N_BXs', 'Happy');
+  assert r.spotify_track_id is null, 'youtube-only song still works';
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d');
+
 -- New drivers default to 10 songs per passenger
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
 do $$ begin

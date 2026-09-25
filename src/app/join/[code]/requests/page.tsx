@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Music2, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { SpotifyIcon } from "@/components/music/AddSongPanels";
 import { PassengerHeader } from "@/components/passenger/PassengerFrame";
 import { usePassenger } from "@/components/passenger/PassengerContext";
 import { RequireJoined } from "@/components/passenger/RequireJoined";
@@ -131,7 +132,12 @@ function MyRequests() {
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 font-bold leading-snug">{item.title}</p>
                       <p className="mt-0.5 flex items-center gap-1 truncate text-sm text-zinc-500">
-                        <YouTubeIcon className="h-3 w-auto shrink-0" /> {item.artist ?? "YouTube"}
+                        {item.spotify_track_id ? (
+                          <SpotifyIcon className="size-3 shrink-0" />
+                        ) : (
+                          <YouTubeIcon className="h-3 w-auto shrink-0" />
+                        )}{" "}
+                        {item.artist ?? "YouTube"}
                       </p>
                     </div>
                     <StatusBadge status={item.status} rank={rank.get(item.id)} />

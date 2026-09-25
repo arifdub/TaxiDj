@@ -91,6 +91,7 @@ export const driverAddSong = (req: {
   artist: string | null;
   durationSeconds: number | null;
   source: RequestSource;
+  spotifyTrackId?: string | null;
 }) =>
   rpc<SongRequest>("driver_add_song", {
     p_ride_id: req.rideId,
@@ -99,6 +100,7 @@ export const driverAddSong = (req: {
     p_artist: req.artist,
     p_duration_seconds: req.durationSeconds,
     p_source: req.source,
+    p_spotify_track_id: req.spotifyTrackId ?? null,
   });
 
 /** Hand a batch of songs to the YouTube app; the first becomes "playing". */
@@ -187,6 +189,7 @@ export const addSongRequest = (req: {
   artist: string | null;
   durationSeconds: number | null;
   source: RequestSource;
+  spotifyTrackId?: string | null;
 }) =>
   rpc<SongRequest>("add_song_request", {
     p_ride_id: req.rideId,
@@ -195,4 +198,5 @@ export const addSongRequest = (req: {
     p_artist: req.artist,
     p_duration_seconds: req.durationSeconds,
     p_source: req.source,
+    p_spotify_track_id: req.spotifyTrackId ?? null,
   });

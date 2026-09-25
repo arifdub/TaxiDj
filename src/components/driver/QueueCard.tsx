@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowDown, ArrowUp, AudioLines, Ban, Check, CircleCheck, Ellipsis, ListVideo, Music2, Pause, Play, Trash2, UserRound } from "lucide-react";
 import { PlayLink } from "@/components/driver/PlayLink";
+import { SpotifyIcon } from "@/components/music/AddSongPanels";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { StatusBadge, Thumbnail } from "@/components/ui";
@@ -107,9 +108,22 @@ export function QueueCard({
       </div>
 
       {/* Open just this song in the YouTube Music / YouTube app (plays now). */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className={`mt-3 grid gap-2 ${item.spotify_url ? "grid-cols-3" : "grid-cols-2"}`}>
         <OpenInApp item={item} target="youtube_music" onOpen={() => { player?.handOff(); playNow(); }} />
         <OpenInApp item={item} target="youtube" onOpen={() => { player?.handOff(); playNow(); }} />
+        {item.spotify_url && (
+          // Picked from Spotify: play the exact track in the Spotify app.
+          <a
+            href={item.spotify_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => { player?.handOff(); playNow(); }}
+            aria-label={`Play ${item.title} in Spotify`}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-[#1DB954]/50 bg-[#1DB954]/15 px-2 text-sm font-bold text-white hover:bg-[#1DB954]/25"
+          >
+            <SpotifyIcon className="size-4 shrink-0" /> Spotify
+          </a>
+        )}
       </div>
       {(playing || played || item.sent_to_youtube_at) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">

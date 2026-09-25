@@ -63,6 +63,9 @@ export interface SongRequest {
   removed_by: "passenger" | "driver" | null;
   /** When the driver handed this song to the YouTube / YouTube Music app. */
   sent_to_youtube_at: string | null;
+  /** Set when the song was picked from Spotify (it plays via its YouTube match). */
+  spotify_track_id: string | null;
+  spotify_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -109,6 +112,17 @@ export interface VideoResult {
   channel: string | null;
   thumbnailUrl: string;
   durationSeconds: number | null;
+}
+
+/** A Spotify search result (from /api/spotify/*). */
+export interface SpotifyTrack {
+  spotifyId: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  imageUrl: string | null;
+  durationSeconds: number;
+  spotifyUrl: string;
 }
 
 /** Requests still waiting to be played, in queue order. */

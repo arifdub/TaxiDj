@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Link2, Search } from "lucide-react";
-import { PastePanel, SearchPanel, TabButton } from "@/components/music/AddSongPanels";
+import { PastePanel, SearchPanel, SpotifyIcon, SpotifyPanel, TabButton } from "@/components/music/AddSongPanels";
 import { PassengerHeader } from "@/components/passenger/PassengerFrame";
 import { usePassenger } from "@/components/passenger/PassengerContext";
 import { RequireJoined } from "@/components/passenger/RequireJoined";
 import { Notice } from "@/components/ui";
 import { addSongRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
-import type { RequestSource, VideoResult } from "@/lib/types";
+import { matchSpotifyTrack } from "@/lib/music/client";
+import type { RequestSource, SpotifyTrack, VideoResult } from "@/lib/types";
 
-type Tab = "search" | "paste";
+type Tab = "search" | "spotify" | "paste";
 
 export default function MusicPage() {
   return (
@@ -27,6 +28,7 @@ function AddMusic() {
   const { ride, queue, used, limit, refresh, code } = usePassenger();
   const [tab, setTab] = useState<Tab>("search");
   const [searchConfigured, setSearchConfigured] = useState<boolean | null>(null);
+  const [spotifyConfigured, setSpotifyConfigured] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
@@ -36,6 +38,7 @@ function AddMusic() {
       .then((r) => r.json())
       .then((c) => {
         setSearchConfigured(Boolean(c.youtubeSearch));
+        setSpotifyConfigured(Boolean(c.spotifySearch));
         if (!c.youtubeSearch) setTab("paste");
       })
       .catch(() => setSearchConfigured(false));
@@ -47,14 +50,25 @@ function AddMusic() {
       .filter((q) => q.status === "pending" || q.status === "queued" || q.status === "playing")
       .map((q) => q.youtube_video_id),
   );
+  const spotifyInQueue = new Set(
+    queue
+      .filter((q) => q.spotify_track_id && (q.status === "pending" || q.status === "queued" || q.status === "playing"))
+      .map((q) => q.spotify_track_id!),
+  );
 
   const add = useCallback(
-    async (video: VideoResult, source: RequestSource) => {
+    async (
+      video: VideoResult | (() => Promise<VideoResult>),
+      source: RequestSource,
+      opts: { spotifyTrackId?: string; key?: string } = {},
+    ) => {
       if (!ride) return;
-      setAdding(video.videoId);
+      setAdding(opts.key ?? (typeof video === "function" ? "" : video.videoId));
       setAddError(null);
       setAdded(null);
       try {
+        // Spotify picks resolve to their YouTube match first.
+        if (typeof video === "function") video = await video();
         await addSongRequest({
           rideId: ride.id,
           videoId: video.videoId,
@@ -62,6 +76,7 @@ function AddMusic() {
           artist: video.channel,
           durationSeconds: video.durationSeconds,
           source,
+          spotifyTrackId: opts.spotifyTrackId,
         });
         setAdded(video.title);
         await refresh();
@@ -74,6 +89,9 @@ function AddMusic() {
     },
     [ride, refresh],
   );
+  const addSpotify = (track: SpotifyTrack) =>
+    add(() => matchSpotifyTrack(track), "youtube", { spotifyTrackId: track.spotifyId, key: track.spotifyId });
+
 
   return (
     <main className="flex-1 pb-8">
@@ -116,17 +134,24 @@ function AddMusic() {
         </Notice>
       )}
 
-      <div role="tablist" aria-label="How to add music" className="mt-5 grid grid-cols-2 gap-2">
+      <div role="tablist" aria-label="How to add music" className={`mt-5 grid ${spotifyConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
         <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="size-4" />}>
-          Search YouTube
+          YouTube
         </TabButton>
+        {spotifyConfigured && (
+          <TabButton active={tab === "spotify"} onClick={() => setTab("spotify")} icon={<SpotifyIcon className="size-4" />}>
+            Spotify
+          </TabButton>
+        )}
         <TabButton active={tab === "paste"} onClick={() => setTab("paste")} icon={<Link2 className="size-4" />}>
-          Paste a link
+          Paste link
         </TabButton>
       </div>
 
       <div className="mt-4">
-        {tab === "search" ? (
+        {tab === "spotify" ? (
+            <SpotifyPanel onAdd={addSpotify} adding={adding} inQueue={spotifyInQueue} disabled={limitReached} />
+          ) : tab === "search" ? (
           searchConfigured === false ? (
             <Notice tone="info">
               YouTube search isn&apos;t set up on this Taxi DJ yet.{" "}

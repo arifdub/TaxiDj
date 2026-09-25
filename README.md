@@ -140,6 +140,21 @@ Quota notes: a search costs about 101 units (`search.list` plus one `videos.list
 
 Accepted links: `youtube.com/watch?v=…`, `m.youtube.com`, `youtu.be/…`, `/shorts/…`, `/embed/…`, `/live/…`, and `music.youtube.com/watch?v=…`. Links on any other domain are rejected. Playlist-only links are politely declined.
 
+## 6b. Spotify search (optional)
+
+Riders and drivers get a **Spotify** tab, where they search Spotify or paste a Spotify song link. A Spotify pick is stored with its Spotify track **and** its best YouTube match (chosen by `src/lib/music/match.ts` using title, artist and duration):
+
+- It plays like any other song: in-app player, **Play all in YouTube playlist**, and background play in the YouTube app.
+- Its queue card also has a green **Spotify** button that opens the exact track in the Spotify app.
+
+Setup:
+
+1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → **Create app**. Tick **Web API**. The Redirect URI can be your site URL; it isn't used.
+2. Copy the **Client ID** and **Client Secret** into `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` (server only), then redeploy.
+3. `YOUTUBE_API_KEY` is also required, because each Spotify pick uses one YouTube search (about 100 quota units) to find the match.
+
+Taxi DJ only reads Spotify track metadata (Client Credentials flow, no user sign-in) and shows "Listen on Spotify" links. It never streams Spotify audio.
+
 ## 7. Run locally
 
 ```bash

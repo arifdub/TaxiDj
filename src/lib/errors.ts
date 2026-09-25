@@ -20,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   ANONYMOUS_DISABLED:
     "Guest access isn't enabled for this Taxi DJ server yet. Please ask the driver to try again later.",
   OFFLINE: "You're offline. Check your connection and try again.",
+  NO_YOUTUBE_MATCH: "We couldn't find that song on YouTube. Try another version or search YouTube directly.",
+  MATCH_FAILED: "We couldn't add that Spotify song right now. Please try again.",
 };
 
 const GENERIC = "Something went wrong. Please try again.";
