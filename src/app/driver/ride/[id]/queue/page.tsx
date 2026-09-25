@@ -2,6 +2,7 @@
 
 import { QrCode as QrIcon } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
+import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { QueueCard } from "@/components/driver/QueueCard";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { ButtonLink, EmptyState } from "@/components/ui";
@@ -37,6 +38,8 @@ export default function QueuePage() {
         )}
       </div>
       <ErrorBar />
+
+      {songs.length > 0 && <PlayQueueInYouTube />}
 
       {songs.length === 0 ? (
         <EmptyState
