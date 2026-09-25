@@ -12,8 +12,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ExternalLink, Hand, Maximize2, Music2, Pause, Play, SkipForward, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, Hand, Maximize2, Minimize2, Music2, Pause, Play, SkipForward, TriangleAlert, X } from "lucide-react";
 import { useDriverRide } from "@/components/driver/RideContext";
+import { useDockLayout, type DockLayout } from "@/hooks/useDockLayout";
 import { usePlaybackMode } from "@/hooks/usePlaybackMode";
 import type { PlaybackMode } from "@/lib/playback";
 import { loadYouTubeIframeApi, YT_STATE, type YTPlayer } from "@/lib/playback/youtube-iframe";
@@ -88,6 +89,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [ready, setReady] = useState(false);
+  // Docked player position (bar / left corner / right corner) and "closed".
+  const [dockLayout, setDockLayout] = useDockLayout();
+  const [closed, setClosed] = useState(false);
   const [apiUnavailable, setApiUnavailable] = useState(false);
   const [status, setStatus] = useState<PlayerStatus>("idle");
   const [error, setError] = useState<PlayerError | null>(null);
@@ -254,6 +258,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const p = playerRef.current;
       if (!p) return;
       handedOffRef.current = false;
+      setClosed(false);
       if (loadedRef.current?.requestId === item.id) {
         p.playVideo();
         return;
@@ -288,6 +293,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       },
       play: () => {
         handedOffRef.current = false;
+        setClosed(false);
         playerRef.current?.playVideo();
       },
       pause: () => playerRef.current?.pauseVideo(),
@@ -312,9 +318,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const active = status === "playing" || status === "paused" || status === "buffering";
+  const audible = status === "playing" || status === "buffering";
   const showSurface = embedded && (onPlayerRoute || Boolean(current) || active);
-  // Outside the Player tab the player docks as a sticky bar above the tabs.
+  // Outside the Player tab the player docks above the tabs: a full-width bar
+  // or a small corner player. YouTube requires a playing video to stay
+  // visible (at least 200×200), so "close" stops playback before hiding.
   const docked = showSurface && !onPlayerRoute;
+  const isClosed = docked && closed && !audible;
+  const corner = dockLayout !== "bar";
+  const dock: DockControls = {
+    layout: dockLayout,
+    setLayout: setDockLayout,
+    close: () => {
+      playerRef.current?.stopVideo();
+      setClosed(true);
+    },
+  };
+  const bottom = { bottom: "calc(max(1rem, env(safe-area-inset-bottom)) + 4.75rem)" };
 
   return (
     <PlayerContext.Provider value={value}>
@@ -322,13 +342,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         <section
           aria-label="Music player"
           className={
-            !showSurface
+            !showSurface || isClosed
               ? "hidden"
               : onPlayerRoute
                 ? "mb-5 flex justify-center"
-                : "fixed inset-x-2 z-30 mx-auto flex max-w-lg items-stretch gap-3 rounded-3xl border border-line bg-night-2/95 p-2 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur md:max-w-3xl"
+                : corner
+                  ? `fixed z-30 flex w-[216px] flex-col gap-2 rounded-3xl border border-line bg-night-2/95 p-2 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur ${
+                      dockLayout === "left" ? "left-2" : "right-2"
+                    }`
+                  : "fixed inset-x-2 z-30 mx-auto flex max-w-lg items-stretch gap-3 rounded-3xl border border-line bg-night-2/95 p-2 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur md:max-w-3xl"
           }
-          style={docked ? { bottom: "calc(max(1rem, env(safe-area-inset-bottom)) + 4.75rem)" } : undefined}
+          style={docked ? bottom : undefined}
         >
           {/*
             Music-player layout: the official YouTube player is kept small,
@@ -343,12 +367,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             <div ref={hostRef} className="absolute inset-0 [&>iframe]:size-full" />
             <PlayerOverlay current={current} />
           </div>
-          {!onPlayerRoute && <DockBar current={current} />}
+          {!onPlayerRoute && (corner ? <CornerControls current={current} dock={dock} /> : <DockBar current={current} dock={dock} />)}
         </section>
       )}
+      {isClosed && (
+        <button
+          type="button"
+          onClick={() => setClosed(false)}
+          style={bottom}
+          className="fixed right-3 z-30 flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-night-2/95 px-3 text-xs font-bold text-white shadow-lg backdrop-blur"
+        >
+          <Music2 className="size-4 text-taxi" aria-hidden /> Show player
+        </button>
+      )}
       {children}
-      {/* Room so the last items can scroll above the sticky player. */}
-      {docked && <div aria-hidden className="h-56" />}
+      {/* Room so the last items can scroll above the docked player. */}
+      {docked && <div aria-hidden className={isClosed ? "h-16" : corner ? "h-[17rem]" : "h-56"} />}
     </PlayerContext.Provider>
   );
 }
@@ -439,47 +473,101 @@ function Overlay({ children }: { children: ReactNode }) {
 }
 
 /** Compact controls under the video on the Ride / Queue / QR tabs. */
-function DockBar({ current }: { current: SongRequest | null }) {
+interface DockControls {
+  layout: DockLayout;
+  setLayout: (layout: DockLayout) => void;
+  /** Stop playback and hide the docked player. */
+  close: () => void;
+}
+
+function usePlayPause(current: SongRequest | null) {
   const player = usePlayer()!;
-  const { ride, queue, skip } = useDriverRide();
+  const { queue, skip } = useDriverRide();
   const next = nextToPlay(queue);
   const playing = player.status === "playing" || player.status === "buffering";
+  return {
+    playing,
+    next,
+    toggle: () => (playing ? player.pause() : current ? player.load(current) : next && (player.load(next), skip("next"))),
+    goNext: () => {
+      if (next) player.load(next);
+      skip("next");
+    },
+  };
+}
 
+/** Full-width bar: title, controls, minimize and close. */
+function DockBar({ current, dock }: { current: SongRequest | null; dock: DockControls }) {
+  const { ride } = useDriverRide();
+  const { playing, next, toggle, goNext } = usePlayPause(current);
   const btn = "grid size-11 shrink-0 place-items-center rounded-full";
+  const small = "grid size-9 shrink-0 place-items-center rounded-full text-mist hover:bg-white/5 hover:text-white";
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-between py-1 max-[380px]:items-center max-[380px]:justify-center">
+    <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5 max-[380px]:items-center">
+      <div className="flex items-start justify-between gap-1">
+        <p className="pt-2 text-[11px] font-black uppercase tracking-widest text-taxi max-[380px]:hidden">Now playing</p>
+        <div className="-mr-1 flex">
+          <button type="button" onClick={() => dock.setLayout("right")} aria-label="Minimize player to the corner" className={small}>
+            <Minimize2 className="size-4" aria-hidden />
+          </button>
+          <button type="button" onClick={dock.close} aria-label="Close player (stops the music)" className={small}>
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      </div>
       {/* On very narrow phones only the buttons fit beside the 200px player. */}
       <div className="min-w-0 max-[380px]:hidden">
-        <p className="text-[11px] font-black uppercase tracking-widest text-taxi">Now playing</p>
-        <p className="mt-1 line-clamp-3 font-bold leading-snug">{current?.title ?? "Nothing playing"}</p>
+        <p className="line-clamp-2 font-bold leading-snug">{current?.title ?? "Nothing playing"}</p>
         <p className="mt-0.5 truncate text-xs text-mist">{current?.artist ?? "YouTube"}</p>
       </div>
       <div className="flex items-center gap-1.5 max-[380px]:flex-col max-[380px]:gap-2">
-        <button
-          type="button"
-          onClick={() => (playing ? player.pause() : current ? player.load(current) : next && (player.load(next), skip("next")))}
-          aria-label={playing ? "Pause" : "Play"}
-          className={`${btn} bg-taxi text-ink`}
-        >
+        <button type="button" onClick={toggle} aria-label={playing ? "Pause" : "Play"} className={`${btn} bg-taxi text-ink`}>
           {playing ? <Pause className="size-5 fill-current" aria-hidden /> : <Play className="ml-0.5 size-5 fill-current" aria-hidden />}
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (next) player.load(next);
-            skip("next");
-          }}
+          onClick={goNext}
           disabled={!next && !current}
           aria-label="Next song"
           className={`${btn} bg-night-3 text-white disabled:opacity-40`}
         >
           <SkipForward className="size-5 fill-current" aria-hidden />
         </button>
-        <Link href={`/driver/ride/${ride.id}/player`} aria-label="Open full player" className={`${btn} bg-night-3 text-white`}>
+        <Link href={`/driver/ride/${ride.id}/player`} aria-label="Open full player" className={`${btn} bg-night-3 text-white max-[380px]:hidden`}>
           <Maximize2 className="size-5" aria-hidden />
         </Link>
       </div>
+    </div>
+  );
+}
+
+/** Compact controls under the corner player. */
+function CornerControls({ current, dock }: { current: SongRequest | null; dock: DockControls }) {
+  const { playing, next, toggle, goNext } = usePlayPause(current);
+  const btn = "grid size-9 shrink-0 place-items-center rounded-full";
+  return (
+    <div className="flex items-center justify-between">
+      <button type="button" onClick={toggle} aria-label={playing ? "Pause" : "Play"} className={`${btn} bg-taxi text-ink`}>
+        {playing ? <Pause className="size-4 fill-current" aria-hidden /> : <Play className="ml-0.5 size-4 fill-current" aria-hidden />}
+      </button>
+      <button type="button" onClick={goNext} disabled={!next && !current} aria-label="Next song" className={`${btn} bg-night-3 text-white disabled:opacity-40`}>
+        <SkipForward className="size-4 fill-current" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => dock.setLayout(dock.layout === "left" ? "right" : "left")}
+        aria-label={`Move player to the ${dock.layout === "left" ? "right" : "left"}`}
+        className={`${btn} bg-night-3 text-white`}
+      >
+        <ArrowLeftRight className="size-4" aria-hidden />
+      </button>
+      <button type="button" onClick={() => dock.setLayout("bar")} aria-label="Expand player to full bar" className={`${btn} bg-night-3 text-white`}>
+        <Maximize2 className="size-4" aria-hidden />
+      </button>
+      <button type="button" onClick={dock.close} aria-label="Close player (stops the music)" className={`${btn} bg-night-3 text-white`}>
+        <X className="size-4" aria-hidden />
+      </button>
     </div>
   );
 }
