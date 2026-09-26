@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CircleCheck, ExternalLink, ListMusic, Music2, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
+import { RadioCard } from "@/components/driver/RadioCard";
 import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { PlayLink } from "@/components/driver/PlayLink";
 import { useDriverRide } from "@/components/driver/RideContext";
@@ -22,8 +23,12 @@ import type { QueueItem } from "@/lib/types";
  */
 export default function PlayerPage() {
   const player = usePlayer();
-  if (player?.embedded) return <EmbeddedPlayerControls />;
-  return <ExternalPlayer />;
+  return (
+    <>
+      {player?.embedded ? <EmbeddedPlayerControls /> : <ExternalPlayer />}
+      <RadioCard />
+    </>
+  );
 }
 
 function ExternalPlayer() {

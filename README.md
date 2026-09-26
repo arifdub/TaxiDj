@@ -269,3 +269,16 @@ Menu → **Car QR card** (`/driver/car-qr`) shows a permanent QR code for the dr
 - **Lost card:** **Get a new code** makes the old printed card stop working immediately.
 
 Database: `supabase/migrations/20261001000000_car_qr.sql` (run `npx supabase db push`).
+
+## Local radio
+
+The Player tab has a **Local radio** section for when the queue is empty.
+
+- **Stations:** from [Radio Browser](https://www.radio-browser.info), a free, open directory of internet radio with an official public API.
+  - It starts with the most popular stations in the driver's country, which Vercel detects from the connection, so there's no location prompt.
+  - **Near me** uses the phone's GPS to show nearby stations first. The driver can also search by station name.
+- **Playback:** each station's own public stream plays in a normal audio player. Nothing is downloaded or re-hosted. Only secure (https) streams are listed, because browsers block others.
+- **Taking turns with the queue:** when a passenger's song plays, the radio pauses, and it comes back on when the queue runs out. Starting the radio pauses the song player. The radio keeps playing across the ride tabs, with a small "on air" bar.
+- **Code:** `src/lib/radio/*` (Radio Browser client), `/api/radio/stations` and `/api/radio/click` (play count, as Radio Browser asks). No API key needed.
+
+Radio Garden has no official embed or public API, so it isn't used.

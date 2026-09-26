@@ -8,6 +8,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DriverGate } from "@/components/driver/DriverGate";
 import { DriverRideProvider } from "@/components/driver/RideContext";
 import { NewRequestToast } from "@/components/driver/NewRequestToast";
+import { RadioMiniBar } from "@/components/driver/RadioCard";
+import { RadioProvider } from "@/components/driver/RadioProvider";
 import { PlayerProvider } from "@/components/driver/PlayerProvider";
 import { RideSummary } from "@/components/driver/RideSummary";
 import { DriverShell } from "@/components/driver/DriverShell";
@@ -88,7 +90,12 @@ function RideFrame({ children }: { children: ReactNode }) {
       <div className="min-h-dvh bg-ink pb-28 text-white">
         <div className="mx-auto w-full max-w-lg px-4 safe-top md:max-w-3xl">
           <RideHeader ride={ride} passengers={data.passengers.filter((p) => p.session_identifier !== ride.driver_id && !p.removed_at).length} live={data.live} />
-          <PlayerProvider>{children}</PlayerProvider>
+          <PlayerProvider>
+            <RadioProvider>
+              {children}
+              <RadioMiniBar />
+            </RadioProvider>
+          </PlayerProvider>
         </div>
       </div>
 
