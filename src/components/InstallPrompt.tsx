@@ -132,7 +132,7 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-label="Add Taxi DJ to your Home Screen"
-      className={`fixed inset-x-3 z-50 mx-auto max-w-sm animate-fade-in ${atTop ? "top-3" : "bottom-3"}`}
+      className={`fixed inset-x-3 z-50 mx-auto max-w-sm animate-fade-in print:hidden ${atTop ? "top-3" : "bottom-3"}`}
       style={atTop ? { top: "max(0.75rem, env(safe-area-inset-top))" } : { bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       {arrowAt === "top-right" && (

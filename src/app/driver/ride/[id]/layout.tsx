@@ -87,7 +87,7 @@ function RideFrame({ children }: { children: ReactNode }) {
     <DriverRideProvider data={{ ...data, ride }} confirmEnd={confirmEnd}>
       <div className="min-h-dvh bg-ink pb-28 text-white">
         <div className="mx-auto w-full max-w-lg px-4 safe-top md:max-w-3xl">
-          <RideHeader ride={ride} passengers={data.passengers.filter((p) => p.session_identifier !== ride.driver_id).length} live={data.live} />
+          <RideHeader ride={ride} passengers={data.passengers.filter((p) => p.session_identifier !== ride.driver_id && !p.removed_at).length} live={data.live} />
           <PlayerProvider>{children}</PlayerProvider>
         </div>
       </div>

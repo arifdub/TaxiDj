@@ -5,6 +5,7 @@
 // and a future native iOS/CarPlay client can call the same functions.
 
 import type {
+  CarCodeTarget,
   Driver,
   DriverRequestAction,
   Passenger,
@@ -58,6 +59,13 @@ export const updateDriverSettings = (s: {
 
 export const savePlaybackMode = (mode: "embedded" | "external") =>
   rpc<Driver>("set_playback_mode", { p_mode: mode });
+
+/** The driver's permanent car QR code (created on first use). `reset` makes a new one. */
+export const getCarCode = (reset = false) => rpc<string>("driver_car_code", { p_reset: reset });
+
+/** Removes a passenger from the ride: their waiting songs go and they can't add or rejoin. */
+export const removePassenger = (passengerId: string) =>
+  rpc<Passenger>("driver_remove_passenger", { p_passenger_id: passengerId });
 
 /** The signed-in driver's saved playback mode, if they have a driver profile. */
 export async function getSavedPlaybackMode(): Promise<"embedded" | "external" | null> {
@@ -153,6 +161,12 @@ export async function getPassengers(rideId: string): Promise<Passenger[]> {
 }
 
 // ----------------------------------------------------------- passenger ----
+
+/** Where a scanned car QR code leads now (null = unknown or replaced code). */
+export async function resolveCarCode(code: string): Promise<CarCodeTarget | null> {
+  const rows = await rpc<CarCodeTarget[]>("resolve_car_code", { p_code: code });
+  return rows?.[0] ?? null;
+}
 
 export async function getRideByCode(code: string): Promise<PublicRide | null> {
   const rows = await rpc<PublicRide[]>("get_ride_by_code", { p_code: code });

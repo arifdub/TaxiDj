@@ -377,5 +377,88 @@ do $$ begin
   assert (public.start_ride()).max_requests_per_passenger = 10, 'default limit is 10';
 end $$;
 
+
+-- Permanent car QR code ----------------------------------------------------------
+-- Driver "e" has a ride running (started above).
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+insert into ctx select 'car', public.driver_car_code();
+insert into ctx select 'eride', id::text from public.rides
+  where driver_id = '00000000-0000-0000-0000-00000000000e'::uuid and status = 'active';
+insert into ctx select 'ecode', join_code from public.rides where id = (select v::uuid from ctx where k='eride');
+do $$ begin
+  assert (select v from ctx where k='car') ~ '^[A-HJ-NP-Z2-9]{8}$', 'car code format';
+  assert public.driver_car_code() = (select v from ctx where k='car'), 'car code is permanent';
+end $$;
+
+-- Anyone scanning the car QR is sent to the ride running now.
+reset role; set role anon;
+select pg_temp.as_user('');
+do $$
+declare r record;
+begin
+  select * into r from public.resolve_car_code(lower((select v from ctx where k='car')));
+  assert r.state = 'active', 'car code → active ride';
+  assert r.join_code = (select v from ctx where k='ecode'), 'car code → current join code';
+  assert not exists (select 1 from public.resolve_car_code('ZZZZZZZZ')), 'unknown car code → nothing';
+end $$;
+
+-- A passenger joins through the car code and adds a song.
+reset role; set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a3');
+insert into ctx select 'epax', id::text from public.join_ride((select join_code from public.resolve_car_code((select v from ctx where k='car'))), 'Old rider');
+select public.add_song_request((select v::uuid from ctx where k='eride'), 'kJQP7kiw5Fk', 'Despacito');
+
+-- The ride ends: the car code has no ride, the old ride can't be joined or added to.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+select public.end_ride((select v::uuid from ctx where k='eride'));
+reset role; set role anon;
+select pg_temp.as_user('');
+do $$ begin
+  assert (select state from public.resolve_car_code((select v from ctx where k='car'))) = 'no_ride', 'no ride running → no_ride';
+  assert (select join_code from public.resolve_car_code((select v from ctx where k='car'))) is null, 'no join code when no ride';
+end $$;
+reset role; set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a3');
+select pg_temp.expect_error($q$select public.add_song_request((select v::uuid from ctx where k='eride'), 'OPf0YbXqDm0', 'Uptown Funk')$q$, 'RIDE_ENDED');
+select pg_temp.expect_error($q$select public.join_ride((select join_code from public.rides where id = (select v::uuid from ctx where k='eride')), null)$q$, 'RIDE_ENDED');
+
+-- Next ride: new join code; being in the old ride gives no access to it.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+delete from ctx where k = 'eride';
+insert into ctx select 'eride', id::text from public.start_ride();
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a3');
+select pg_temp.expect_error($q$select public.add_song_request((select v::uuid from ctx where k='eride'), 'OPf0YbXqDm0', 'Uptown Funk')$q$, 'NOT_A_PASSENGER');
+do $$ begin
+  assert not exists (select 1 from public.song_requests where ride_id = (select v::uuid from ctx where k='eride')), 'old passenger cannot read the new queue';
+end $$;
+
+-- They rejoin with the car QR (they kept it); the driver removes them.
+delete from ctx where k = 'epax';
+insert into ctx select 'epax', id::text from public.join_ride((select join_code from public.resolve_car_code((select v from ctx where k='car'))), 'Old rider');
+select public.add_song_request((select v::uuid from ctx where k='eride'), 'OPf0YbXqDm0', 'Uptown Funk');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
+select pg_temp.expect_error($q$select public.driver_remove_passenger((select v::uuid from ctx where k='epax'))$q$, 'PASSENGER_NOT_FOUND');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+do $$ begin
+  assert (public.driver_remove_passenger((select v::uuid from ctx where k='epax'))).removed_at is not null, 'driver removes passenger';
+  assert (select status from public.song_requests where passenger_id = (select v::uuid from ctx where k='epax')) = 'removed', 'their waiting song is removed';
+end $$;
+-- The driver's own row can't be removed.
+select public.driver_add_song((select v::uuid from ctx where k='eride'), 'fJ9rUzIMcZQ', 'Bohemian Rhapsody');
+select pg_temp.expect_error($q$select public.driver_remove_passenger((select id from public.passengers where session_identifier = '00000000-0000-0000-0000-00000000000e'::uuid and ride_id = (select v::uuid from ctx where k='eride')))$q$, 'INVALID_ACTION');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a3');
+select pg_temp.expect_error($q$select public.add_song_request((select v::uuid from ctx where k='eride'), 'RgKAFK5djSk', 'See You Again')$q$, 'PASSENGER_REMOVED');
+select pg_temp.expect_error($q$select public.join_ride((select join_code from public.resolve_car_code((select v from ctx where k='car'))), null)$q$, 'PASSENGER_REMOVED');
+do $$ begin
+  assert not exists (select 1 from public.rides where id = (select v::uuid from ctx where k='eride')), 'removed passenger cannot read the ride';
+end $$;
+
+-- New car code: the old printed code stops working.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+do $$ begin
+  assert public.driver_car_code(true) <> (select v from ctx where k='car'), 'reset gives a new code';
+  assert not exists (select 1 from public.resolve_car_code((select v from ctx where k='car'))), 'old car code no longer works';
+end $$;
+
 reset role;
 \echo 'ALL TAXI DJ SQL TESTS PASSED'

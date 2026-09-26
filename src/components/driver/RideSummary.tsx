@@ -35,7 +35,7 @@ export function RideSummary({
           </p>
           <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
             <Stat icon={<Clock />} label="Duration" value={formatElapsed(ride.created_at, endedAt)} />
-            <Stat icon={<Users />} label="Passengers" value={String(passengers.filter((p) => p.session_identifier !== ride.driver_id).length)} />
+            <Stat icon={<Users />} label="Passengers" value={String(passengers.filter((p) => p.session_identifier !== ride.driver_id && !p.removed_at).length)} />
             <Stat icon={<Music2 />} label="Songs" value={String(queue.length)} />
           </dl>
         </div>

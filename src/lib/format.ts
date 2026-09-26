@@ -47,6 +47,11 @@ export function joinUrl(code: string, origin?: string): string {
 }
 
 /** The URL without protocol, for display: "taxidj.com/join/AB72X". */
+/** Permanent car QR code link: always leads to the driver's current ride. */
+export function carUrl(code: string, origin?: string): string {
+  return joinUrl(code, origin).replace(/\/join\/[^/]*$/, `/c/${code}`);
+}
+
 export function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, "").replace(/^www\./, "");
 }

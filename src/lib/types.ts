@@ -20,6 +20,8 @@ export interface Driver {
   auto_approve: boolean;
   max_requests_per_passenger: number;
   playback_mode: "embedded" | "external";
+  /** Permanent car QR code (null until first used). */
+  car_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +45,15 @@ export interface Passenger {
   session_identifier: string;
   nickname: string;
   created_at: string;
+  /** Set when the driver removed this passenger from the ride. */
+  removed_at: string | null;
+}
+
+/** Where a permanent car QR code leads right now. */
+export interface CarCodeTarget {
+  state: "active" | "no_ride";
+  join_code: string | null;
+  name: string | null;
 }
 
 export interface SongRequest {

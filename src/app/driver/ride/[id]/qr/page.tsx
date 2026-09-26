@@ -1,6 +1,7 @@
 "use client";
 
-import { Copy, Share2 } from "lucide-react";
+import Link from "next/link";
+import { Copy, Printer, Share2 } from "lucide-react";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { QrCode } from "@/components/QrCode";
 import { Button } from "@/components/ui";
@@ -38,6 +39,12 @@ export default function RideQrPage() {
         <Button variant="dark" onClick={() => copy(url)}>
           <Copy className="size-5" aria-hidden /> {copied ? "Copied!" : "Copy link"}
         </Button>
+        <Link
+          href="/driver/car-qr"
+          className="col-span-2 flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-line text-sm font-bold text-mist hover:text-white"
+        >
+          <Printer className="size-4" aria-hidden /> Print a permanent QR card for your car
+        </Link>
         <Button variant="danger" className="col-span-2" onClick={confirmEnd}>
           END RIDE
         </Button>

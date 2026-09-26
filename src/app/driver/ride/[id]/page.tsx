@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronRight, Maximize2, Plus, QrCode as QrIcon, Share2 } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
 import { NowPlayingCard } from "@/components/driver/NowPlayingCard";
+import { PassengersCard } from "@/components/driver/PassengersCard";
 import { QueueCard } from "@/components/driver/QueueCard";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { QrCode } from "@/components/QrCode";
@@ -70,6 +71,8 @@ export default function RideDashboard() {
           </ol>
         )}
       </section>
+
+      <PassengersCard />
 
       <section aria-labelledby="join" className="rounded-3xl border border-line bg-night-2 p-4">
         <h2 id="join" className="sr-only">

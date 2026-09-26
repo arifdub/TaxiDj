@@ -53,7 +53,8 @@ export function PassengerProvider({ code: rawCode, children }: { code: string; c
         setPublicRide(r);
         if (r.state === "active") {
           const p = await getMyPassenger(r.id).catch(() => null);
-          if (!cancelled) setPassenger(p);
+          // A removed passenger is treated as not joined (joining again is refused).
+          if (!cancelled) setPassenger(p && !p.removed_at ? p : null);
         }
         if (!cancelled) setLookup("done");
       } catch {

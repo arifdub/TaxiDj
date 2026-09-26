@@ -17,10 +17,10 @@ export function DriverShell({
   wide?: boolean;
 }) {
   return (
-    <div className="min-h-dvh bg-ink text-white">
+    <div className="min-h-dvh bg-ink text-white print:bg-white">
       <div className={`mx-auto w-full px-4 safe-top safe-bottom ${wide ? "max-w-3xl" : "max-w-lg"}`}>
         {(title || backHref) && (
-          <header className="flex min-h-14 items-center gap-2 py-2">
+          <header className="flex min-h-14 items-center gap-2 py-2 print:hidden">
             {backHref && (
               <Link
                 href={backHref}

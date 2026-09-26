@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChevronRight, CircleHelp, History, Music2, Settings } from "lucide-react";
+import { ChevronRight, CircleHelp, History, Music2, QrCode, Settings } from "lucide-react";
 import { DriverGate } from "@/components/driver/DriverGate";
 import { Logo } from "@/components/Logo";
 import { ButtonLink, EmptyState, Skeleton } from "@/components/ui";
@@ -69,6 +69,7 @@ function Home() {
         </ButtonLink>
 
         <nav aria-label="Driver menu" className="overflow-hidden rounded-3xl border border-line bg-night-2">
+          <MenuLink href="/driver/car-qr" icon={<QrCode className="size-5" />} label="Car QR card (print once)" />
           <MenuLink href="/driver/history" icon={<History className="size-5" />} label="Previous Rides" />
           <MenuLink href="/driver/settings" icon={<Settings className="size-5" />} label="Settings" />
           <MenuLink href="/driver/help" icon={<CircleHelp className="size-5" />} label="Help" />

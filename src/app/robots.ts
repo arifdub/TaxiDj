@@ -11,6 +11,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/api/",
         "/join/",
+        "/c/",
         "/driver/ride/",
         "/driver/history",
         "/driver/settings",

@@ -87,3 +87,10 @@ body {
     display: none;
   }
 }
+
+/* Printing (e.g. the car QR card): white page. */
+@media print {
+  body {
+    background: #fff;
+  }
+}

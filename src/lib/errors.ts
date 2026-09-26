@@ -15,6 +15,8 @@ const MESSAGES: Record<string, string> = {
   INVALID_ACTION: "That action isn't available.",
   INVALID_DISPLAY_NAME: "Please enter a name between 1 and 40 characters.",
   INVALID_REQUEST_LIMIT: "Choose a song limit between 1 and 50.",
+  PASSENGER_REMOVED: "The driver removed you from this ride, so you can't add songs.",
+  PASSENGER_NOT_FOUND: "That passenger has already left the ride.",
   CODE_GENERATION_FAILED: "We couldn't start a ride just now. Please try again.",
   SUPABASE_NOT_CONFIGURED: "Taxi DJ isn't connected to its database yet.",
   ANONYMOUS_DISABLED:
