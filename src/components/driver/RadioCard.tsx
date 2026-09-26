@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { LocateFixed, Pause, Play, Radio, Search, Square } from "lucide-react";
@@ -75,7 +76,7 @@ export function RadioCard() {
 
   return (
     <section aria-labelledby="radio" className="mt-8 w-full rounded-3xl border border-line bg-night-2 p-4 text-left">
-      <h2 id="radio" className="flex items-center gap-2 text-lg font-black">
+      <h2 id="radio" className="flex scroll-mt-4 items-center gap-2 text-lg font-black">
         <Radio className="size-5 text-taxi" aria-hidden /> Local radio
       </h2>
       <p className="mt-1 text-sm text-mist">
@@ -263,5 +264,31 @@ export function RadioMiniBar() {
         <Pause className="size-4 fill-current" aria-hidden />
       </button>
     </div>
+  );
+}
+
+/**
+ * "Play local radio" button for empty-queue screens: opens the radio
+ * section on the Player tab. Hidden while a song is loaded.
+ */
+export function RadioShortcut({ className = "" }: { className?: string }) {
+  const radio = useRadio();
+  const { ride, queue } = useDriverRide();
+  if (!radio || nowPlaying(queue)) return null;
+  const on = radio.station && (radio.status === "playing" || radio.status === "loading");
+  return (
+    <Link
+      href={`/driver/ride/${ride.id}/player#radio`}
+      className={`flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-taxi/40 bg-taxi/10 px-4 font-black text-white hover:bg-taxi/20 ${className}`}
+    >
+      <Radio className="size-5 shrink-0 text-taxi" aria-hidden />
+      {on ? (
+        <span className="truncate">
+          On air: {radio.station!.name} <span className="font-semibold text-mist">· Open radio</span>
+        </span>
+      ) : (
+        "Play local radio"
+      )}
+    </Link>
   );
 }

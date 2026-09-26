@@ -5,6 +5,7 @@ import { Plus, QrCode as QrIcon } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
 import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { QueueCard } from "@/components/driver/QueueCard";
+import { RadioShortcut } from "@/components/driver/RadioCard";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { ButtonLink, EmptyState } from "@/components/ui";
 import { plural } from "@/lib/format";
@@ -58,6 +59,9 @@ export default function QueuePage() {
         >
           Show the QR code and invite passengers to add a song.
         </EmptyState>
+      ) : null}
+      {songs.length === 0 ? (
+        <RadioShortcut />
       ) : (
         <ol className="space-y-3">
           {songs.map((item) => (

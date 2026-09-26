@@ -6,6 +6,7 @@ import { ErrorBar } from "@/components/driver/ErrorBar";
 import { NowPlayingCard } from "@/components/driver/NowPlayingCard";
 import { PassengersCard } from "@/components/driver/PassengersCard";
 import { QueueCard } from "@/components/driver/QueueCard";
+import { RadioShortcut } from "@/components/driver/RadioCard";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { QrCode } from "@/components/QrCode";
 import { Button, EmptyState } from "@/components/ui";
@@ -50,9 +51,12 @@ export default function RideDashboard() {
           </div>
         </div>
         {waiting.length === 0 ? (
-          <EmptyState icon={<QrIcon className="size-7" />} title="Your queue is empty.">
-            Show the QR code and invite passengers to add a song.
-          </EmptyState>
+          <>
+            <EmptyState icon={<QrIcon className="size-7" />} title="Your queue is empty.">
+              Show the QR code and invite passengers to add a song.
+            </EmptyState>
+            <RadioShortcut className="mt-3" />
+          </>
         ) : (
           <ol className="space-y-3">
             {waiting.slice(0, PREVIEW_COUNT).map((item, i) => (

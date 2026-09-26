@@ -110,9 +110,15 @@ export function RadioProvider({ children }: { children: ReactNode }) {
     [audio],
   );
 
+  // Pause the song player only if a song is actually playing (pausing an
+  // empty player would make it show up as "paused").
+  const pauseSong = useCallback(() => {
+    if (player?.status === "playing" || player?.status === "buffering") player.pause();
+  }, [player]);
+
   const play = useCallback(
     (s: RadioStation) => {
-      player?.pause(); // one thing at a time
+      pauseSong(); // one thing at a time
       setWaitingForQueue(false);
       setStation(s);
       start(s);
@@ -123,7 +129,7 @@ export function RadioProvider({ children }: { children: ReactNode }) {
       }
       fetch("/api/radio/click", { method: "POST", body: JSON.stringify({ id: s.id }) }).catch(() => {});
     },
-    [player, start],
+    [pauseSong, start],
   );
 
   const toggle = useCallback(() => {
@@ -133,13 +139,13 @@ export function RadioProvider({ children }: { children: ReactNode }) {
       a.pause();
       setWaitingForQueue(false);
     } else {
-      player?.pause();
+      pauseSong();
       setWaitingForQueue(false);
       // Live radio: reload so it plays "now", not from where it paused.
       a.src = station.streamUrl;
       start(station);
     }
-  }, [audio, player, start, station, status]);
+  }, [audio, pauseSong, start, station, status]);
 
   const stop = useCallback(() => {
     const a = audioRef.current;
