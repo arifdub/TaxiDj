@@ -25,11 +25,15 @@ function CarQr() {
   const [resetting, setResetting] = useState(false);
   const { share, copy, copied } = useShare();
 
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     getCarCode()
-      .then(setCode)
+      .then((c) => {
+        setCode(c);
+        setError(null);
+      })
       .catch((err) => setError(friendlyError(err)));
-  }, []);
+  }, [attempt]);
 
   const url = code ? carUrl(code) : null;
 
@@ -56,6 +60,9 @@ function CarQr() {
         {error && (
           <Notice tone="error" className="print:hidden">
             {error}
+            <button type="button" onClick={() => setAttempt((n) => n + 1)} className="ml-2 font-bold underline">
+              Try again
+            </button>
           </Notice>
         )}
 

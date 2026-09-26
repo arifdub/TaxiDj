@@ -21,6 +21,8 @@ const MESSAGES: Record<string, string> = {
   SUPABASE_NOT_CONFIGURED: "Taxi DJ isn't connected to its database yet.",
   ANONYMOUS_DISABLED:
     "Guest access isn't enabled for this Taxi DJ server yet. Please ask the driver to try again later.",
+  DB_UPDATE_NEEDED:
+    "Taxi DJ's database needs an update for this feature. Run “npx supabase db push” (see README), then try again.",
   OFFLINE: "You're offline. Check your connection and try again.",
   NO_YOUTUBE_MATCH: "We couldn't find that song on YouTube. Try another version or search YouTube directly.",
   MATCH_FAILED: "We couldn't add that Spotify song right now. Please try again.",
@@ -40,6 +42,9 @@ export function errorCode(err: unknown): string | null {
           : "";
   if (Object.hasOwn(MESSAGES, message)) return message;
   if (/anonymous sign-ins are disabled/i.test(message)) return "ANONYMOUS_DISABLED";
+  // A database function or column the app expects doesn't exist yet: a
+  // migration hasn't been applied.
+  if (/could not find the function|schema cache|does not exist/i.test(message)) return "DB_UPDATE_NEEDED";
   if (typeof navigator !== "undefined" && !navigator.onLine) return "OFFLINE";
   if (/failed to fetch|network|load failed/i.test(message)) return "OFFLINE";
   return null;
