@@ -22,7 +22,10 @@ function StartRide() {
     setError(null);
     try {
       const ride = await startRide();
-      router.replace(`/driver/ride/${ride.id}/qr`);
+      // From a passenger's "turn on the music" request: they're already
+      // waiting on the car QR page, so go straight to the ride.
+      const fromRequest = new URLSearchParams(window.location.search).get("from") === "request";
+      router.replace(fromRequest ? `/driver/ride/${ride.id}` : `/driver/ride/${ride.id}/qr`);
     } catch (err) {
       setError(friendlyError(err));
       started.current = false;

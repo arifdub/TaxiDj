@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Car, QrCode, RefreshCw } from "lucide-react";
+import { BellRing, Car, Check, QrCode, RefreshCw } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Button, Spinner } from "@/components/ui";
 import { resolveCarCode } from "@/lib/api";
@@ -77,6 +77,7 @@ export default function CarCodePage() {
               &ldquo;Can you start a Taxi DJ ride so I can play my music?&rdquo;
             </p>
           </div>
+          <AskDriverButton code={code} />
           <p className="mt-4 text-zinc-600">
             Keep this page open – it opens the music queue as soon as{" "}
             {state.name ? <strong>{state.name}</strong> : "the driver"} starts the ride.
@@ -84,5 +85,46 @@ export default function CarCodePage() {
         </div>
       )}
     </main>
+  );
+}
+
+/** "Ask the driver to turn on the music": sends the driver a notification. */
+function AskDriverButton({ code }: { code: string }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  async function ask() {
+    setState("sending");
+    try {
+      const res = await fetch("/api/push/car-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { sent?: number };
+      setState(res.ok && (data.sent ?? 0) > 0 ? "sent" : "failed");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  if (state === "sent") {
+    return (
+      <p role="status" className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-green-50 p-4 font-bold text-green-900 ring-1 ring-green-200">
+        <Check className="size-5 shrink-0" aria-hidden /> Sent! Your driver has been asked to turn on the music.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-4">
+      <p className="text-sm text-zinc-600">Rather not ask out loud?</p>
+      <Button className="mt-2 w-full" loading={state === "sending"} onClick={ask}>
+        {state !== "sending" && <BellRing className="size-5" aria-hidden />} Ask the driver to turn on the music
+      </Button>
+      {state === "failed" && (
+        <p role="status" className="mt-2 text-sm text-zinc-600">
+          We couldn&apos;t reach the driver&apos;s app just now – please ask them instead.
+        </p>
+      )}
+    </div>
   );
 }
