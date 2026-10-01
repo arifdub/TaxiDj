@@ -5,7 +5,10 @@ import { getPassengers, getQueue, getRide } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase/client";
 import type { Passenger, QueueItem, Ride } from "@/lib/types";
 
-const POLL_MS = 30_000;
+// Safety-net refresh while the screen is on: frequent when live updates
+// aren't connected, occasional when they are.
+const POLL_OFFLINE_MS = 8_000;
+const POLL_LIVE_MS = 20_000;
 
 /**
  * Live view of a ride: ride row, full queue and passengers.
@@ -103,9 +106,11 @@ export function useRide(
         scheduleRefresh,
       );
     }
+    let isLive = false;
     channel.subscribe((status) => {
-      setLive(status === "SUBSCRIBED");
-      if (status === "SUBSCRIBED") scheduleRefresh();
+      isLive = status === "SUBSCRIBED";
+      setLive(isLive);
+      if (isLive) scheduleRefresh();
     });
 
     const onVisible = () => {
@@ -113,13 +118,25 @@ export function useRide(
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", scheduleRefresh);
-    const poll = setInterval(scheduleRefresh, POLL_MS);
+    // A push notification arrived (service worker): refresh straight away.
+    const onSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === "taxidj-push") scheduleRefresh();
+    };
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
+    let lastPoll = Date.now();
+    const poll = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastPoll < (isLive ? POLL_LIVE_MS : POLL_OFFLINE_MS)) return;
+      lastPoll = Date.now();
+      scheduleRefresh();
+    }, 2_000);
 
     return () => {
       clearTimeout(timer);
       clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", scheduleRefresh);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
       client.removeChannel(channel);
     };
   }, [rideId, refresh, withPassengers]);

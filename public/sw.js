@@ -22,7 +22,15 @@ self.addEventListener("push", (event) => {
   };
   // Android: a button to play the song straight in YouTube Music.
   if (data.playUrl) options.actions = [{ action: "play", title: "▶ Play in YouTube Music" }];
-  event.waitUntil(self.registration.showNotification(data.title || "Taxi DJ", options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title || "Taxi DJ", options),
+      // Tell any open Taxi DJ window to refresh its queue right away.
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((windows) => windows.forEach((w) => w.postMessage({ type: "taxidj-push", url: data.url }))),
+    ]),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
