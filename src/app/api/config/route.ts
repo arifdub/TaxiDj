@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isPushConfigured } from "@/lib/push/server";
 import { isSpotifyConfigured } from "@/lib/spotify/service";
 import { isYouTubeSearchConfigured } from "@/lib/youtube/service";
 
@@ -11,5 +12,7 @@ export function GET() {
     // required. Pasted Spotify links need no Spotify keys; search does.
     spotifyLinks: youtubeSearch,
     spotifySearch: youtubeSearch && isSpotifyConfigured(),
+    // Push notifications for drivers (VAPID keys + server key set).
+    push: isPushConfigured(),
   });
 }

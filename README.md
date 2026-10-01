@@ -282,3 +282,21 @@ The Player tab has a **Local radio** section for when the queue is empty.
 - **Code:** `src/lib/radio/*` (Radio Browser client), `/api/radio/stations` and `/api/radio/click` (play count, as Radio Browser asks). No API key needed.
 
 Radio Garden has no official embed or public API, so it isn't used.
+
+## Push notifications and auto-play
+
+**Notifications:** drivers get a notification when a passenger adds a song, even with Taxi DJ closed or the phone locked. Tapping it opens the ride's queue. On Android, the notification also has a **Play in YouTube Music** button.
+
+- It uses standard Web Push: `public/sw.js`, `src/lib/push/*` and `/api/push/*`.
+- iPhone needs iOS 16.4 or later, with Taxi DJ opened from the Home Screen.
+- The driver turns notifications on in **Settings → Notifications**, or from the banner on the ride screen.
+
+Setup (Vercel → Settings → Environment Variables, then redeploy):
+
+1. Run `npx web-push generate-vapid-keys`. Set `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` from the output, and optionally `VAPID_SUBJECT=mailto:you@example.com`.
+2. Set `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Project Settings → API → `service_role`). It's server-only and never sent to the browser.
+3. Run `npx supabase db push` to apply `20261002000000_push_notifications.sql`.
+
+A notification is sent once per song, and only the passenger who just added the song can trigger it.
+
+**Auto-play new songs** (Settings, on by default): when the Taxi DJ player is idle and a song joins the queue, it starts by itself. Taxi DJ must be open on screen. A web app can't start songs inside the YouTube Music app or play YouTube with the phone locked.

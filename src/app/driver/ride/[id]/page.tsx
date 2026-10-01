@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, Maximize2, Plus, QrCode as QrIcon, Share2 } from "lucide-react";
 import { ErrorBar } from "@/components/driver/ErrorBar";
+import { NotificationsBanner } from "@/components/driver/NotificationsCard";
 import { NowPlayingCard } from "@/components/driver/NowPlayingCard";
 import { PassengersCard } from "@/components/driver/PassengersCard";
 import { QueueCard } from "@/components/driver/QueueCard";
@@ -26,6 +27,7 @@ export default function RideDashboard() {
   return (
     <div className="space-y-6 pb-6">
       <ErrorBar />
+      <NotificationsBanner />
       <NowPlayingCard />
 
       <section aria-labelledby="up-next">

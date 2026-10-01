@@ -16,6 +16,7 @@ import type {
   RideHistoryEntry,
   SongRequest,
 } from "@/lib/types";
+import { notifyDriverOfRequest } from "@/lib/push/client";
 import { supabase } from "@/lib/supabase/client";
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
@@ -213,4 +214,8 @@ export const addSongRequest = (req: {
     p_duration_seconds: req.durationSeconds,
     p_source: req.source,
     p_spotify_track_id: req.spotifyTrackId ?? null,
+  }).then((song) => {
+    // Push notification to the driver (best-effort, in the background).
+    void notifyDriverOfRequest(song.id);
+    return song;
   });

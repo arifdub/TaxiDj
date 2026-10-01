@@ -460,5 +460,31 @@ do $$ begin
   assert not exists (select 1 from public.resolve_car_code((select v from ctx where k='car'))), 'old car code no longer works';
 end $$;
 
+
+-- Push subscriptions -------------------------------------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+select public.save_push_subscription('https://push.example.com/abc', repeat('k', 87), repeat('a', 22));
+select public.save_push_subscription('https://push.example.com/abc', repeat('n', 87), repeat('b', 22)); -- update
+do $$ begin
+  assert (select count(*) from public.push_subscriptions) = 1, 'one row per device';
+  assert (select p256dh from public.push_subscriptions) = repeat('n', 87), 'subscription updated';
+end $$;
+select pg_temp.expect_error($q$select public.save_push_subscription('http://insecure.example.com/x', repeat('k', 87), repeat('a', 22))$q$, 'new row for relation "push_subscriptions" violates check constraint "push_subscriptions_endpoint_check"');
+-- Other users can't see or delete it.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  assert not exists (select 1 from public.push_subscriptions), 'others cannot read subscriptions';
+end $$;
+select public.delete_push_subscription('https://push.example.com/abc');
+select pg_temp.expect_error($q$insert into public.push_subscriptions (driver_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-0000000000a1', 'https://x', 'k', 'a')$q$, 'permission denied for table push_subscriptions');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+do $$ begin
+  assert (select count(*) from public.push_subscriptions) = 1, 'still there after a stranger tried to delete it';
+end $$;
+select public.delete_push_subscription('https://push.example.com/abc');
+do $$ begin
+  assert (select count(*) from public.push_subscriptions) = 0, 'driver deletes own subscription';
+end $$;
+
 reset role;
 \echo 'ALL TAXI DJ SQL TESTS PASSED'

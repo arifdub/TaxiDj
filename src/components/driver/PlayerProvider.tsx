@@ -14,6 +14,7 @@ import {
 } from "react";
 import { ExternalLink, GripHorizontal, Hand, Maximize2, Minimize2, Music2, PanelBottom, Pause, Play, SkipForward, TriangleAlert, X } from "lucide-react";
 import { useDriverRide } from "@/components/driver/RideContext";
+import { useAutoPlayNew } from "@/hooks/useAutoPlayNew";
 import { useDockLayout, type DockLayout, type DockPosition } from "@/hooks/useDockLayout";
 import { usePlaybackMode } from "@/hooks/usePlaybackMode";
 import type { PlaybackMode } from "@/lib/playback";
@@ -309,6 +310,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [armTapHint],
   );
+
+  // Auto-play: when nothing is playing and a song newly joins the queue (a
+  // passenger added it, or the driver approved it), start it by itself.
+  // Songs already waiting when the ride screen opens don't auto-start.
+  const [autoPlayNew] = useAutoPlayNew();
+  const seenQueuedRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const queued = queue.filter((q) => q.status === "queued").map((q) => q.id);
+    const seen = seenQueuedRef.current;
+    seenQueuedRef.current = new Set([...(seen ?? []), ...queued]);
+    if (!seen || !queued.some((id) => !seen.has(id))) return;
+    if (!autoPlayNew || !embedded || !ready || handedOffRef.current || current) return;
+    if (status === "playing" || status === "buffering") return;
+    const next = nextToPlay(queue);
+    if (!next) return;
+    queueMicrotask(() => {
+      load(next);
+      actRef.current(next.id, "play");
+    });
+  }, [queue, autoPlayNew, embedded, ready, current, status, load]);
 
   const value = useMemo<PlayerContextValue>(
     () => ({

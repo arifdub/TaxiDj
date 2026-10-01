@@ -10,6 +10,8 @@ import { Button, Notice, Skeleton } from "@/components/ui";
 import { ensureDriver, updateDriverSettings } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
+import { NotificationsSetting } from "@/components/driver/NotificationsCard";
+import { useAutoPlayNew } from "@/hooks/useAutoPlayNew";
 import { usePlaybackMode } from "@/hooks/usePlaybackMode";
 import type { PlaybackMode } from "@/lib/playback";
 import type { Driver } from "@/lib/types";
@@ -177,6 +179,8 @@ function SettingsForm({ user }: { user: User }) {
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
 
       <PlaybackModeSetting />
+      <AutoPlaySetting />
+      <NotificationsSetting />
 
       <div className="rounded-3xl border border-line bg-night-2 p-4">
         <p className="font-bold">Account</p>
@@ -244,5 +248,26 @@ function PlaybackModeSetting() {
         ))}
       </div>
     </fieldset>
+  );
+}
+
+function AutoPlaySetting() {
+  const [on, setOn] = useAutoPlayNew();
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-3xl border border-line bg-night-2 p-4">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => setOn(e.target.checked)}
+        className="mt-1 size-6 shrink-0 accent-taxi"
+      />
+      <span>
+        <span className="block font-bold">Auto-play new songs</span>
+        <span className="block text-sm text-mist">
+          When nothing is playing and a passenger adds a song, the Taxi DJ player starts it by itself (Taxi DJ needs to
+          be open on screen). Saved on this phone.
+        </span>
+      </span>
+    </label>
   );
 }
