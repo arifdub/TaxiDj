@@ -23,6 +23,8 @@ export const metadata: Metadata = {
       /^google-site-verification=/,
       "",
     ),
+    // Bing Webmaster Tools.
+    other: { "msvalidate.01": "1E8FF22534CB4B71236D16BFBFB5A7C1" },
   },
   appleWebApp: { capable: true, title: "Taxi DJ", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
