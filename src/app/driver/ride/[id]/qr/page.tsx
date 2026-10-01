@@ -24,7 +24,7 @@ export default function RideQrPage() {
         <p className="text-lg font-bold">Scan to join my music queue</p>
         <QrCode value={url} className="mx-auto mt-3 aspect-square w-full max-w-[18rem]" />
         <p className="mt-3 text-lg">
-          Join at <span className="font-bold text-queue">{displayUrl(url).replace(/\/join\/.*/, "")}</span>
+          Join at <span className="font-bold text-queue">{displayUrl(url).replace(/\/join\/.*/, "/join")}</span>
         </p>
         <p className="text-2xl font-bold">
           Code: <span className="font-mono font-black tracking-widest text-queue">{ride.join_code}</span>

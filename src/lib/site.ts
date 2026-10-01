@@ -13,12 +13,17 @@ export const SITE_URL = (
 
 export const SITE_NAME = "Taxi DJ";
 
-export const SITE_TITLE = "Taxi DJ – Let Passengers Choose the Music in Your Taxi";
+export const SITE_TITLE = "Taxi DJ – Play Your Own Music in a Taxi or Uber";
 
 export const SITE_DESCRIPTION =
-  "Taxi DJ is a web app for taxi, Uber, Bolt and private-hire drivers. Passengers scan a QR code and add songs to the car's music queue from their phone – no app download. The driver controls the queue and plays it through YouTube, Bluetooth or CarPlay.";
+  "Taxi DJ lets passengers play their own music in a taxi, Uber, Bolt or private-hire car. Scan the QR code, search for a song and add it to the car's music queue from your phone – no app download. Drivers control the queue, get notified of new songs, and play it through YouTube, Bluetooth or CarPlay.";
 
 export const SITE_KEYWORDS = [
+  "Taxi DJ",
+  "taxi DJ app",
+  "play music in taxi",
+  "play my music in an Uber",
+  "request songs in a taxi",
   "taxi music app",
   "passenger song requests",
   "let passengers choose music",

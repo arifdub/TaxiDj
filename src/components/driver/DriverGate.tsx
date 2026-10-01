@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ConfigNotice } from "@/components/ConfigNotice";
 import { Logo } from "@/components/Logo";
@@ -32,6 +33,12 @@ export function DriverGate({ children }: { children: (user: User) => ReactNode }
     return (
       <GateFrame>
         <SignInPanel />
+        <Link
+          href="/join"
+          className="mt-4 flex min-h-14 items-center justify-center rounded-2xl border border-taxi/40 bg-taxi/10 font-bold text-white hover:bg-taxi/20"
+        >
+          Passenger? Enter a join code →
+        </Link>
       </GateFrame>
     );
   }

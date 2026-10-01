@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/driver/help"],
+      allow: ["/", "/join$", "/driver/help", "/play-music-in-a-taxi", "/taxi-music-app"],
       disallow: [
         "/api/",
         "/join/",

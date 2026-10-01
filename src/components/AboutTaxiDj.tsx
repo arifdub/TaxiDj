@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { Car, ListMusic, QrCode, Search, ShieldCheck, Smartphone } from "lucide-react";
+import { GUIDES } from "@/components/guides/GuidePage";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Public "what is Taxi DJ" section on the home page. Server-rendered so
@@ -32,6 +34,9 @@ const FEATURES = [
   "Built-in player with auto-play, or one tap to play the whole queue in the YouTube app",
   "Big, simple controls designed for use while parked",
   "Ride ends, code stops working – nothing carries over to the next passenger",
+  "Permanent QR card for the car: always opens the ride that's running",
+  "Notifications when a passenger adds a song, even with the app closed",
+  "Local radio stations for when the queue is empty",
   "Works on iPhone and Android; add it to your Home Screen like an app",
 ];
 
@@ -179,6 +184,18 @@ export function AboutTaxiDj() {
         >
           Start using Taxi DJ
         </a>
+        <nav aria-label="Guides" className="mt-8">
+          <h2 className="text-sm font-black uppercase tracking-widest text-mist">Guides</h2>
+          <ul className="mt-2 space-y-2">
+            {GUIDES.map((g) => (
+              <li key={g.href}>
+                <Link href={g.href} className="font-bold text-taxi underline-offset-4 hover:underline">
+                  {g.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
         <p className="mt-8 text-center text-xs text-mist">
           Taxi DJ is an independent app. It isn&apos;t affiliated with or endorsed by YouTube, Google, Spotify,
           Apple, Uber, Bolt, Lyft or FREENOW.

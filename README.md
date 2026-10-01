@@ -251,7 +251,7 @@ The driver UI uses big touch targets, high contrast, minimal text and no flashin
   - `/robots.txt` and `/sitemap.xml` come from `src/app/robots.ts` and `src/app/sitemap.ts`.
   - `/opengraph-image` is the link-preview picture.
   - The home page carries WebSite, WebApplication and FAQPage structured data (JSON-LD).
-- **What's indexed:** the home page and `/driver/help`. Ride, passenger, account and API pages are blocked from crawling, and the passenger join pages are also marked `noindex`.
+- **What's indexed:** the home page, the guides `/play-music-in-a-taxi` (for passengers) and `/taxi-music-app` (for drivers), `/join` (type a code) and `/driver/help`. Ride, passenger, account and API pages are blocked from crawling, and the passenger join pages are also marked `noindex`.
 - **Site address:** set `NEXT_PUBLIC_SITE_URL` (e.g. `https://taxidj.app`) in Vercel. Without it, Vercel's production domain is used.
 - **Google Search Console:**
   - A **Domain** property is verified with a DNS TXT record.
