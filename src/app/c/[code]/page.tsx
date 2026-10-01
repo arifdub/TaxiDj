@@ -70,10 +70,16 @@ export default function CarCodePage() {
       ) : (
         <div>
           <Car className="mx-auto size-10 text-taxi-dark" aria-hidden />
-          <h1 className="mt-3 text-2xl font-black">No ride is running right now</h1>
-          <p className="mt-2 text-zinc-600">
-            {state.name ? <strong>{state.name}</strong> : "The driver"} hasn&apos;t started a Taxi DJ ride yet. Keep this
-            page open – it opens the music queue as soon as the ride starts.
+          <h1 className="mt-3 text-2xl font-black">The music isn&apos;t on yet</h1>
+          <div className="mt-4 rounded-2xl bg-taxi/15 p-4 ring-1 ring-taxi/40">
+            <p className="text-sm font-bold uppercase tracking-wider text-zinc-600">Just ask your driver:</p>
+            <p className="mt-1 text-xl font-black leading-snug">
+              &ldquo;Can you start a Taxi DJ ride so I can play my music?&rdquo;
+            </p>
+          </div>
+          <p className="mt-4 text-zinc-600">
+            Keep this page open – it opens the music queue as soon as{" "}
+            {state.name ? <strong>{state.name}</strong> : "the driver"} starts the ride.
           </p>
         </div>
       )}

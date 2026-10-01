@@ -263,7 +263,7 @@ The driver UI uses big touch targets, high contrast, minimal text and no flashin
 Menu → **Car QR card** (`/driver/car-qr`) shows a permanent QR code for the driver's car, to print once and stick in the car. It links to `/c/<car code>`:
 
 - **Ride running:** scanning opens that ride's join page. Every ride still gets its own new join code.
-- **No ride running:** passengers see "No ride is running right now". The page checks again every 5 seconds and opens the ride once it starts.
+- **No ride running:** passengers are asked to say to the driver "Can you start a Taxi DJ ride so I can play my music?". The page checks again every 5 seconds and opens the ride once it starts.
 - **Ride ended:** nobody can join it or add songs, even with the page still open. The next ride starts with an empty queue and no passengers.
 - **Removing someone:** the ride screen lists **Passengers** with **Remove**. For example, someone who kept a photo of the card but isn't in the car. Their waiting songs are removed, and they can't add songs, see the ride, or rejoin it.
 - **Lost card:** **Get a new code** makes the old printed card stop working immediately.

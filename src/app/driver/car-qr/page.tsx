@@ -104,8 +104,8 @@ function CarQr() {
               usual.
             </li>
             <li>
-              <strong className="text-white">No ride running:</strong> passengers see &ldquo;No ride is running right
-              now&rdquo;. Nobody can add songs.
+              <strong className="text-white">No ride running:</strong> passengers are asked to say to you
+              &ldquo;Can you start a Taxi DJ ride so I can play my music?&rdquo;. Nobody can add songs until you do.
             </li>
             <li>
               <strong className="text-white">Ride ended:</strong> nobody can add songs to it any more, even with the
