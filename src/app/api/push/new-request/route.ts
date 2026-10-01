@@ -28,9 +28,22 @@ export async function POST(req: Request) {
   const passenger = song?.passenger as unknown as { nickname: string; session_identifier: string } | null;
   const ride = song?.ride as unknown as { driver_id: string; status: string } | null;
   const fresh = song && Date.now() - new Date(song.created_at).getTime() < 5 * 60_000;
-  if (!song || !passenger || !ride || passenger.session_identifier !== uid || ride.driver_id === uid || !fresh) {
-    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  const skip =
+    !song || !passenger || !ride
+      ? "song not found"
+      : passenger.session_identifier !== uid
+        ? "not the passenger who added it"
+        : ride.driver_id === uid
+          ? "added from the driver's own sign-in (same phone/app as the driver)"
+          : !fresh
+            ? "song is older than 5 minutes"
+            : null;
+  if (skip) {
+    // Visible in Vercel → Logs, to explain a missing notification.
+    console.warn(`Push not sent for ${requestId}: ${skip}`);
+    return NextResponse.json({ error: "NOT_FOUND", reason: skip }, { status: 404 });
   }
+  if (!song || !passenger || !ride) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   // Claim the notification (only the first call sends it).
   const { data: claimed } = await db
@@ -49,5 +62,6 @@ export async function POST(req: Request) {
     playUrl: needsApproval ? undefined : `https://music.youtube.com/watch?v=${song.youtube_video_id}`,
     tag: `ride-${song.ride_id}`,
   });
+  if (sent === 0) console.warn(`Push for ${requestId}: the driver has no devices with notifications on`);
   return NextResponse.json({ sent });
 }

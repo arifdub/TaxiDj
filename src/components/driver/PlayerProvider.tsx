@@ -311,8 +311,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [armTapHint],
   );
 
-  // Auto-play: when nothing is playing and a song newly joins the queue (a
-  // passenger added it, or the driver approved it), start it by itself.
+  // Auto-play: when the player is idle and a song newly joins the queue (a
+  // passenger added it, the driver added or approved it), start it by itself.
   // Songs already waiting when the ride screen opens don't auto-start.
   const [autoPlayNew] = useAutoPlayNew();
   const seenQueuedRef = useRef<Set<string> | null>(null);
@@ -321,15 +321,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const seen = seenQueuedRef.current;
     seenQueuedRef.current = new Set([...(seen ?? []), ...queued]);
     if (!seen || !queued.some((id) => !seen.has(id))) return;
-    if (!autoPlayNew || !embedded || !ready || handedOffRef.current || current) return;
-    if (status === "playing" || status === "buffering") return;
+    if (!autoPlayNew || !embedded || !ready || handedOffRef.current) return;
+    // Judge by what the player is really doing: a song left marked "playing"
+    // in the list (e.g. after a YouTube hand-off) mustn't block auto-play,
+    // but a song the driver paused should stay paused.
+    if (status === "playing" || status === "buffering" || status === "paused") return;
     const next = nextToPlay(queue);
     if (!next) return;
     queueMicrotask(() => {
       load(next);
       actRef.current(next.id, "play");
     });
-  }, [queue, autoPlayNew, embedded, ready, current, status, load]);
+  }, [queue, autoPlayNew, embedded, ready, status, load]);
 
   const value = useMemo<PlayerContextValue>(
     () => ({
