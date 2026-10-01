@@ -61,7 +61,7 @@ export function NotificationsSetting() {
       </p>
       <div className="mt-4">
         {!configured ? (
-          <p className="text-sm text-mist">Notifications aren&apos;t set up on this Taxi DJ server yet (see the README).</p>
+          <KeyMaker />
         ) : state === "needs-install" ? (
           <p className="text-sm text-white">
             On iPhone, notifications only work from the Home Screen app: add Taxi DJ to your Home Screen (Share → Add
@@ -128,6 +128,70 @@ export function NotificationsBanner() {
       <button type="button" onClick={dismiss} aria-label="Dismiss" className="grid size-11 shrink-0 place-items-center rounded-full text-mist hover:bg-white/5">
         <X className="size-5" aria-hidden />
       </button>
+    </div>
+  );
+}
+
+const b64url = (buf: ArrayBuffer) =>
+  btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+/**
+ * Setup helper shown until notifications are configured: creates the
+ * notification key pair right here in the browser (nothing is sent
+ * anywhere) so the owner can paste it into Vercel.
+ */
+function KeyMaker() {
+  const [keys, setKeys] = useState<{ publicKey: string; privateKey: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function make() {
+    const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    const raw = await crypto.subtle.exportKey("raw", pair.publicKey);
+    const jwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+    setKeys({ publicKey: b64url(raw), privateKey: jwk.d! });
+  }
+
+  async function copy(label: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(label);
+    } catch {
+      setCopied(null);
+    }
+  }
+
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-white">Notifications aren&apos;t set up yet. One-time setup for the owner:</p>
+      {!keys ? (
+        <Button variant="dark" className="w-full" onClick={make}>
+          Create notification keys
+        </Button>
+      ) : (
+        <div className="space-y-3">
+          {(
+            [
+              ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", keys.publicKey],
+              ["VAPID_PRIVATE_KEY", keys.privateKey],
+            ] as const
+          ).map(([name, value]) => (
+            <div key={name} className="rounded-2xl bg-night-3 p-3">
+              <p className="font-mono text-xs font-bold text-taxi">{name}</p>
+              <p className="mt-1 break-all font-mono text-xs text-white">{value}</p>
+              <Button variant="dark" size="md" className="mt-2 w-full" onClick={() => copy(name, value)}>
+                {copied === name ? "Copied!" : "Copy"}
+              </Button>
+            </div>
+          ))}
+          <p className="text-mist">
+            These keys were made on this phone and haven&apos;t been sent anywhere. Add both in Vercel → your project →
+            Settings → Environment Variables (with the names shown), then redeploy. Keep the private key secret.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
