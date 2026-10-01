@@ -25,7 +25,10 @@ export default function MusicPage() {
 }
 
 function AddMusic() {
-  const { ride, queue, used, limit, refresh, code } = usePassenger();
+  const { ride, queue, used, limit, refresh, code, passenger } = usePassenger();
+  // This phone is signed in as the ride's own driver (e.g. Chrome on an
+  // Android phone that also has the Taxi DJ driver app installed).
+  const isDriverHere = Boolean(ride && passenger && ride.driver_id === passenger.session_identifier);
   const [tab, setTab] = useState<Tab>("search");
   const [searchConfigured, setSearchConfigured] = useState<boolean | null>(null);
   // Spotify tab: pasted links work without Spotify keys; search needs keys.
@@ -109,6 +112,13 @@ function AddMusic() {
       </div>
       <p className="text-sm text-zinc-500">{limit} requests maximum</p>
 
+      {isDriverHere && (
+        <Notice tone="info" className="mt-4">
+          <strong>You&apos;re signed in as this ride&apos;s driver on this phone.</strong> Songs you add here count as the
+          driver&apos;s own, so there&apos;s no &ldquo;new song&rdquo; alert or notification. To test as a passenger, use
+          another phone or a private/incognito tab.
+        </Notice>
+      )}
       {limitReached && (
         <Notice tone="info" className="mt-4">
           You&apos;ve reached your {limit}-song limit for this ride.{" "}
