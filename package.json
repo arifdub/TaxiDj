@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:db": "./supabase/tests/run.sh"
+    "test:db": "./supabase/tests/run.sh",
+    "db:fix-file": "node scripts/build-fix-database.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

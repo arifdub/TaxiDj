@@ -22,7 +22,7 @@ const MESSAGES: Record<string, string> = {
   ANONYMOUS_DISABLED:
     "Guest access isn't enabled for this Taxi DJ server yet. Please ask the driver to try again later.",
   DB_UPDATE_NEEDED:
-    "Taxi DJ's database needs an update for this feature. Run “npx supabase db push” (see README), then try again.",
+    "Taxi DJ's database needs an update. In Supabase, open SQL Editor and run the file supabase/fix-database.sql from your Taxi DJ project on GitHub, then try again.",
   OFFLINE: "You're offline. Check your connection and try again.",
   NO_YOUTUBE_MATCH: "We couldn't find that song on YouTube. Try another version or search YouTube directly.",
   MATCH_FAILED: "We couldn't add that Spotify song right now. Please try again.",

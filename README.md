@@ -300,3 +300,12 @@ Setup (Vercel → Settings → Environment Variables, then redeploy):
 A notification is sent once per song, and only the passenger who just added the song can trigger it.
 
 **Auto-play new songs** (Settings, on by default): when the Taxi DJ player is idle and a song joins the queue, it starts by itself. Taxi DJ must be open on screen. A web app can't start songs inside the YouTube Music app or play YouTube with the phone locked.
+
+## Updating the database without the command line
+
+`supabase/fix-database.sql` brings a Taxi DJ database fully up to date, whatever updates it's missing. It's safe to run any number of times.
+
+1. On GitHub, open `supabase/fix-database.sql` and click **Copy raw file**.
+2. In Supabase, open **SQL Editor → New query**, paste, and click **Run**.
+
+It's generated from `supabase/migrations/` by `npm run db:fix-file`. Regenerate it after adding a migration.
