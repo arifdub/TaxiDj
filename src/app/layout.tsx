@@ -16,8 +16,14 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   category: "music",
   robots: { index: true, follow: true },
-  // Google Search Console "HTML tag" verification (optional).
-  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
+  // Google Search Console verification (public token; can be overridden
+  // with GOOGLE_SITE_VERIFICATION in Vercel).
+  verification: {
+    google: (process.env.GOOGLE_SITE_VERIFICATION || "IHCSATcZgTzaM8AxuxdLZ8I57v8g4XrpBtbgCLeCycs").replace(
+      /^google-site-verification=/,
+      "",
+    ),
+  },
   appleWebApp: { capable: true, title: "Taxi DJ", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
   openGraph: {
