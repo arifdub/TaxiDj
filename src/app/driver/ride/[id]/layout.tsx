@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useState, type ReactNode } from "react";
-import { Disc3, House, ListMusic, QrCode, Users, X } from "lucide-react";
+import { Disc3, House, ListMusic, QrCode, Settings, Users, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DriverGate } from "@/components/driver/DriverGate";
 import { DriverRideProvider } from "@/components/driver/RideContext";
@@ -157,13 +157,14 @@ function RideTabs({ rideId }: { rideId: string }) {
     { href: `${base}/queue`, label: "Queue", icon: ListMusic },
     { href: `${base}/player`, label: "Player", icon: Disc3 },
     { href: `${base}/qr`, label: "QR Code", icon: QrCode },
+    { href: `${base}/settings`, label: "Settings", icon: Settings },
   ];
   return (
     <nav
       aria-label="Ride navigation"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-night/95 backdrop-blur safe-bottom"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-4 px-2 pt-2 md:max-w-3xl">
+      <ul className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-2 md:max-w-3xl">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
@@ -171,7 +172,7 @@ function RideTabs({ rideId }: { rideId: string }) {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-bold ${
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold ${
                   active ? "text-taxi" : "text-mist hover:text-white"
                 }`}
               >
