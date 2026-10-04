@@ -19,6 +19,7 @@ import { useDockLayout, type DockLayout, type DockPosition } from "@/hooks/useDo
 import { usePlaybackMode } from "@/hooks/usePlaybackMode";
 import type { PlaybackMode } from "@/lib/playback";
 import { loadYouTubeIframeApi, YT_STATE, type YTPlayer } from "@/lib/playback/youtube-iframe";
+import { claimMediaSession, setMediaState } from "@/lib/media-session";
 import { nextToPlay, nowPlaying } from "@/lib/queue";
 import type { SongRequest } from "@/lib/types";
 
@@ -310,6 +311,53 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [armTapHint],
   );
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  });
+
+  // Phone / car "Now Playing" (lock screen, CarPlay, Android Auto,
+  // Bluetooth): song title and artwork, play/pause and the steering-wheel
+  // next / previous buttons drive the Taxi DJ queue.
+  const nowPlayingTitle = current?.title ?? null;
+  useEffect(() => {
+    if (!embedded) return;
+    const song = currentRef.current;
+    if (song && (status === "playing" || status === "buffering")) {
+      claimMediaSession(
+        "song",
+        {
+          title: song.title,
+          artist: song.artist ?? "YouTube",
+          album: song.passenger?.nickname ? `Requested by ${song.passenger.nickname} · Taxi DJ` : "Taxi DJ",
+          artwork: song.thumbnail_url,
+        },
+        {
+          play: () => playerRef.current?.playVideo(),
+          pause: () => playerRef.current?.pauseVideo(),
+          stop: () => playerRef.current?.pauseVideo(),
+          nexttrack: () => {
+            const loaded = loadedRef.current;
+            const next = nextToPlay(queueRef.current.filter((q) => q.id !== loaded?.requestId));
+            if (next) {
+              loadRef.current(next);
+              actRef.current(next.id, "play");
+            } else {
+              skipRef.current("next");
+            }
+          },
+          previoustrack: () => {
+            handedOffRef.current = false;
+            skipRef.current("previous");
+          },
+        },
+      );
+    } else if (status === "paused") {
+      setMediaState("song", "paused");
+    } else if (!song || status === "ended") {
+      setMediaState("song", "none");
+    }
+  }, [embedded, status, current?.id, nowPlayingTitle]);
 
   // Auto-play: when the player is idle and a song newly joins the queue (a
   // passenger added it, the driver added or approved it), start it by itself.

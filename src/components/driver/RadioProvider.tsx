@@ -13,6 +13,7 @@ import {
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import type { RadioStation } from "@/lib/radio/stations";
+import { claimMediaSession, releaseMediaSession, setMediaState } from "@/lib/media-session";
 import { nowPlaying } from "@/lib/queue";
 
 // Local radio for when the song queue is empty.
@@ -79,6 +80,7 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   // Stop the stream when leaving the ride.
   useEffect(
     () => () => {
+      releaseMediaSession("radio");
       const a = audioRef.current;
       if (a) {
         a.pause();
@@ -97,15 +99,6 @@ export function RadioProvider({ children }: { children: ReactNode }) {
       }
       setStatus("loading");
       a.play().catch(() => setStatus((cur) => (cur === "loading" ? "paused" : cur)));
-      // Lock screen / car display info.
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: s.name,
-          artist: [s.state, s.country].filter(Boolean).join(", ") || "Live radio",
-          album: "Taxi DJ radio",
-          artwork: s.favicon ? [{ src: s.favicon, sizes: "256x256" }] : [],
-        });
-      }
     },
     [audio],
   );
@@ -159,12 +152,50 @@ export function RadioProvider({ children }: { children: ReactNode }) {
     setStatus("idle");
   }, []);
 
+  // Phone / car "Now Playing" (lock screen, CarPlay, Android Auto, Bluetooth).
+  const toggleRef = useRef(toggle);
+  const stopRef = useRef(stop);
+  useEffect(() => {
+    toggleRef.current = toggle;
+    stopRef.current = stop;
+  });
+  useEffect(() => {
+    if (!station) {
+      releaseMediaSession("radio");
+      return;
+    }
+    if (status === "playing") {
+      claimMediaSession(
+        "radio",
+        {
+          title: station.name,
+          artist: [station.state, station.country].filter(Boolean).join(", ") || "Live radio",
+          album: "Taxi DJ radio",
+          artwork: station.favicon,
+        },
+        {
+          play: () => toggleRef.current(),
+          pause: () => toggleRef.current(),
+          stop: () => stopRef.current(),
+        },
+      );
+    } else if (status === "paused" || status === "error") {
+      setMediaState("radio", "paused");
+    }
+  }, [station, status]);
+
   // Take turns with the song queue.
   const songAudible = player?.status === "playing" || player?.status === "buffering";
   const songLoaded = Boolean(nowPlaying(queue));
   const radioOn = status === "playing" || status === "loading";
+  // Step aside only when a song *starts* playing. When the driver starts the
+  // radio while a song plays, the song is being paused (YouTube confirms a
+  // moment later) – the radio mustn't pause itself in that gap.
+  const songWasAudible = useRef(songAudible);
   useEffect(() => {
-    if (songAudible && radioOn) {
+    const songStarted = songAudible && !songWasAudible.current;
+    songWasAudible.current = songAudible;
+    if (songStarted && radioOn) {
       audioRef.current?.pause();
       // Remember to come back on when the queue is done.
       queueMicrotask(() => setWaitingForQueue(true));
