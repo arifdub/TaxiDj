@@ -4,14 +4,23 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Check, ChevronLeft, Link2, Search } from "lucide-react";
 import { useDriverRide } from "@/components/driver/RideContext";
-import { PastePanel, SearchPanel, SpotifyIcon, SpotifyPanel, TabButton } from "@/components/music/AddSongPanels";
+import {
+  PastePanel,
+  SearchPanel,
+  SoundCloudIcon,
+  SoundCloudPanel,
+  SpotifyIcon,
+  SpotifyPanel,
+  TabButton,
+  type SoundCloudResult,
+} from "@/components/music/AddSongPanels";
 import { Notice } from "@/components/ui";
-import { driverAddSong } from "@/lib/api";
+import { driverAddSong, driverAddSoundCloudSong } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { matchSpotifyTrack } from "@/lib/music/client";
 import type { RequestSource, SpotifyTrack, VideoResult } from "@/lib/types";
 
-type Tab = "search" | "spotify" | "paste";
+type Tab = "search" | "soundcloud" | "spotify" | "paste";
 
 /** Driver adds songs to their own ride: YouTube search or paste a link. */
 export default function DriverAddSongPage() {
@@ -21,6 +30,7 @@ export default function DriverAddSongPage() {
   // Spotify tab: pasted links work without Spotify keys; search needs keys.
   const [spotifyConfigured, setSpotifyConfigured] = useState(false);
   const [spotifySearch, setSpotifySearch] = useState(false);
+  const [soundCloudConfigured, setSoundCloudConfigured] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [added, setAdded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +42,7 @@ export default function DriverAddSongPage() {
         setSearchConfigured(Boolean(c.youtubeSearch));
         setSpotifyConfigured(Boolean(c.spotifyLinks ?? c.spotifySearch));
         setSpotifySearch(Boolean(c.spotifySearch));
+        setSoundCloudConfigured(Boolean(c.soundcloud));
         if (!c.youtubeSearch) setTab("paste");
       })
       .catch(() => setSearchConfigured(false));
@@ -40,7 +51,13 @@ export default function DriverAddSongPage() {
   const inQueue = new Set(
     queue
       .filter((q) => q.status === "pending" || q.status === "queued" || q.status === "playing")
-      .map((q) => q.youtube_video_id),
+      .map((q) => q.youtube_video_id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const soundCloudInQueue = new Set(
+    queue
+      .filter((q) => q.soundcloud_track_id && (q.status === "pending" || q.status === "queued" || q.status === "playing"))
+      .map((q) => q.soundcloud_track_id!),
   );
   const spotifyInQueue = new Set(
     queue
@@ -70,6 +87,31 @@ export default function DriverAddSongPage() {
           spotifyTrackId: opts.spotifyTrackId,
         });
         setAdded(video.title);
+      } catch (err) {
+        setError(friendlyError(err));
+      } finally {
+        setAdding(null);
+        refresh();
+      }
+    },
+    [ride.id, refresh],
+  );
+  const addSoundCloud = useCallback(
+    async (t: SoundCloudResult) => {
+      setAdding(t.id);
+      setError(null);
+      setAdded(null);
+      try {
+        await driverAddSoundCloudSong({
+          rideId: ride.id,
+          trackId: t.id,
+          title: t.title,
+          artist: t.artist,
+          durationSeconds: t.durationSeconds,
+          url: t.permalinkUrl,
+          artworkUrl: t.artworkUrl,
+        });
+        setAdded(t.title);
       } catch (err) {
         setError(friendlyError(err));
       } finally {
@@ -117,10 +159,20 @@ export default function DriverAddSongPage() {
 
       {/* The shared search/paste panels are light-themed: show them on a card. */}
       <div className="rounded-3xl bg-white p-4 text-ink">
-        <div role="tablist" aria-label="How to add a song" className={`grid ${spotifyConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
+        <div
+          role="tablist"
+          aria-label="How to add a song"
+          // 2 or 4 tabs: two per row; 3 tabs: one row.
+          className={`grid ${spotifyConfigured !== soundCloudConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}
+        >
           <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="size-4" />}>
             YouTube
           </TabButton>
+          {soundCloudConfigured && (
+            <TabButton active={tab === "soundcloud"} onClick={() => setTab("soundcloud")} icon={<SoundCloudIcon className="size-4" />}>
+              SoundCloud
+            </TabButton>
+          )}
           {spotifyConfigured && (
             <TabButton active={tab === "spotify"} onClick={() => setTab("spotify")} icon={<SpotifyIcon className="size-4" />}>
               Spotify
@@ -131,7 +183,18 @@ export default function DriverAddSongPage() {
           </TabButton>
         </div>
         <div className="mt-4">
-          {tab === "spotify" ? (
+          {tab === "soundcloud" ? (
+            <SoundCloudPanel
+              onAdd={addSoundCloud}
+              adding={adding}
+              inQueue={soundCloudInQueue}
+              disabled={false}
+              onUnavailable={() => {
+                setSoundCloudConfigured(false);
+                setTab("search");
+              }}
+            />
+          ) : tab === "spotify" ? (
             <SpotifyPanel
               searchEnabled={spotifySearch}
               onAdd={addSpotify}

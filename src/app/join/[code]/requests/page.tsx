@@ -7,7 +7,7 @@ import { PassengerHeader } from "@/components/passenger/PassengerFrame";
 import { usePassenger } from "@/components/passenger/PassengerContext";
 import { RequireJoined } from "@/components/passenger/RequireJoined";
 import { ButtonLink, EmptyState, Notice, SongSkeleton, StatusBadge, Thumbnail, YouTubeIcon } from "@/components/ui";
-import { addSongRequest, removeMyRequest } from "@/lib/api";
+import { addSongRequest, addSoundCloudRequest, removeMyRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { nowPlaying, upNext } from "@/lib/queue";
 import type { QueueItem } from "@/lib/types";
@@ -66,14 +66,24 @@ function MyRequests() {
     run(
       item.id,
       () =>
-        addSongRequest({
-          rideId: ride!.id,
-          videoId: item.youtube_video_id,
-          title: item.title,
-          artist: item.artist,
-          durationSeconds: item.duration_seconds,
-          source: item.source,
-        }),
+        item.provider === "soundcloud"
+          ? addSoundCloudRequest({
+              rideId: ride!.id,
+              trackId: item.soundcloud_track_id!,
+              title: item.title,
+              artist: item.artist,
+              durationSeconds: item.duration_seconds,
+              url: item.soundcloud_url!,
+              artworkUrl: item.thumbnail_url.startsWith("https://") ? item.thumbnail_url : null,
+            })
+          : addSongRequest({
+              rideId: ride!.id,
+              videoId: item.youtube_video_id!,
+              title: item.title,
+              artist: item.artist,
+              durationSeconds: item.duration_seconds,
+              source: item.source,
+            }),
       `“${item.title}” was added to the queue again.`,
     );
 
@@ -137,7 +147,7 @@ function MyRequests() {
                         ) : (
                           <YouTubeIcon className="h-3 w-auto shrink-0" />
                         )}{" "}
-                        {item.artist ?? "YouTube"}
+                        {item.artist ?? (item.provider === "soundcloud" ? "SoundCloud" : "YouTube")}
                       </p>
                     </div>
                     <StatusBadge status={item.status} rank={rank.get(item.id)} />

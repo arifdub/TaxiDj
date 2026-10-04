@@ -112,6 +112,29 @@ export const driverAddSong = (req: {
     p_spotify_track_id: req.spotifyTrackId ?? null,
   });
 
+export interface SoundCloudSongInput {
+  rideId: string;
+  trackId: string;
+  title: string;
+  artist: string | null;
+  durationSeconds: number | null;
+  url: string;
+  artworkUrl: string | null;
+}
+
+const soundCloudParams = (req: SoundCloudSongInput) => ({
+  p_ride_id: req.rideId,
+  p_track_id: req.trackId,
+  p_title: req.title,
+  p_artist: req.artist,
+  p_duration_seconds: req.durationSeconds,
+  p_url: req.url,
+  p_artwork_url: req.artworkUrl,
+});
+
+export const driverAddSoundCloudSong = (req: SoundCloudSongInput) =>
+  rpc<SongRequest>("driver_add_soundcloud_song", soundCloudParams(req));
+
 /** Hand a batch of songs to the YouTube app; the first becomes "playing". */
 export const sendToYouTube = (rideId: string, requestIds: string[]) =>
   rpc<SongRequest[]>("driver_send_to_youtube", { p_ride_id: rideId, p_request_ids: requestIds });
@@ -216,6 +239,12 @@ export const addSongRequest = (req: {
     p_spotify_track_id: req.spotifyTrackId ?? null,
   }).then((song) => {
     // Push notification to the driver (best-effort, in the background).
+    void notifyDriverOfRequest(song.id);
+    return song;
+  });
+
+export const addSoundCloudRequest = (req: SoundCloudSongInput) =>
+  rpc<SongRequest>("add_soundcloud_request", soundCloudParams(req)).then((song) => {
     void notifyDriverOfRequest(song.id);
     return song;
   });

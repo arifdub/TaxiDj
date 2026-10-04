@@ -639,3 +639,171 @@ export function SpotifyIcon({ className = "size-4" }: { className?: string }) {
     </svg>
   );
 }
+
+export function SoundCloudIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} role="img" aria-label="SoundCloud">
+      <circle cx="12" cy="12" r="12" fill="#FF5500" />
+      <path
+        d="M14.2 8.6c-.5 0-1 .1-1.4.3v6.5h5c1.2 0 2.2-1 2.2-2.2s-1-2.2-2.2-2.2c-.3 0-.5 0-.8.1-.3-1.4-1.5-2.5-2.8-2.5ZM11.8 9.2v6.2h.6V9.4l-.6-.2Zm-1.4.6v5.6h.6V9.6l-.6.2Zm-1.4.6v5h.6v-5h-.6Zm-1.4.8v4.2h.6v-4.2h-.6Zm-1.4 1v3.2h.6v-3.2h-.6Zm-1.2.6v2.4h.5v-2.4h-.5Z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------- SoundCloud ----
+
+/** A SoundCloud track as returned by /api/soundcloud/search. */
+export interface SoundCloudResult {
+  id: string;
+  title: string;
+  artist: string | null;
+  durationSeconds: number | null;
+  artworkUrl: string | null;
+  permalinkUrl: string;
+}
+
+const SC_ERRORS: Record<string, string> = {
+  RATE_LIMITED: "You're searching a little fast. Please wait a moment and try again.",
+  NOT_FOUND: "We couldn't find that SoundCloud track. Check the link, or search by name.",
+  NOT_PLAYABLE: "That track can't be played outside SoundCloud. Try another one.",
+  QUOTA: "SoundCloud has reached today's play limit for Taxi DJ. Try the Music tab instead.",
+};
+
+export function SoundCloudPanel({
+  onAdd,
+  adding,
+  inQueue,
+  disabled,
+  onUnavailable,
+}: {
+  onAdd: (t: SoundCloudResult) => void;
+  adding: string | null;
+  inQueue: Set<string>;
+  disabled: boolean;
+  onUnavailable: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SoundCloudResult[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function search(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    inputRef.current?.blur();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/soundcloud/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.error === "NOT_CONFIGURED") return onUnavailable();
+        setResults(null);
+        setError(SC_ERRORS[data.error] ?? "SoundCloud search is unavailable right now. Try the Music tab.");
+        return;
+      }
+      setResults(data.results);
+    } catch (err) {
+      setError(friendlyError(err, "SoundCloud search is unavailable right now. Try the Music tab."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="mb-1 flex items-center gap-2 text-lg font-black">
+        <SoundCloudIcon className="size-5" /> Search SoundCloud
+      </h2>
+      <p className="mb-3 text-sm text-zinc-500">Search by song or artist, or paste a soundcloud.com link.</p>
+      <form onSubmit={search} role="search" className="flex gap-2">
+        <label htmlFor="sc-search" className="sr-only">
+          Search SoundCloud
+        </label>
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-zinc-400" aria-hidden />
+          <input
+            ref={inputRef}
+            id="sc-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Song, artist or link…"
+            enterKeyHint="search"
+            autoComplete="off"
+            maxLength={300}
+            className="h-14 w-full rounded-2xl border-2 border-zinc-200 bg-zinc-50 pl-12 pr-4 text-lg focus:border-taxi-dark focus:bg-white focus:outline-none"
+          />
+        </div>
+        <Button type="submit" className="px-5" aria-label="Search SoundCloud" loading={loading}>
+          {!loading && <Search className="size-5" aria-hidden />}
+        </Button>
+      </form>
+
+      <div className="mt-4" aria-live="polite">
+        {loading ? (
+          <SongSkeleton tone="light" count={5} />
+        ) : error ? (
+          <Notice tone="error">{error}</Notice>
+        ) : results?.length === 0 ? (
+          <p className="py-8 text-center text-zinc-500">No playable tracks found. Try a different search.</p>
+        ) : results ? (
+          <section aria-label="SoundCloud results">
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">SoundCloud results</h3>
+              <span className="text-[11px] font-semibold text-zinc-500">Powered by SoundCloud</span>
+            </div>
+            <ul className="divide-y divide-zinc-100">
+              {results.map((t) => {
+                const isIn = inQueue.has(t.id);
+                const busy = adding === t.id;
+                return (
+                  <li key={t.id} className="flex items-center gap-3 py-3">
+                    <Thumbnail src={t.artworkUrl ?? "/icons/512"} className="size-16 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-bold leading-snug">{t.title}</p>
+                      {/* Attribution: uploader + link back to the track on SoundCloud. */}
+                      <a
+                        href={t.permalinkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 flex items-center gap-1 truncate text-xs text-[#CC4400] underline-offset-2 hover:underline"
+                      >
+                        <SoundCloudIcon className="size-3 shrink-0" /> {t.artist ?? "SoundCloud"}
+                      </a>
+                      {t.durationSeconds ? (
+                        <p className="mt-0.5 font-mono text-xs font-semibold text-zinc-500">{formatDuration(t.durationSeconds)}</p>
+                      ) : null}
+                    </div>
+                    {isIn ? (
+                      <span className="flex min-h-11 items-center gap-1 rounded-xl bg-zinc-100 px-3 text-xs font-bold text-zinc-600">
+                        <Check className="size-4" aria-hidden /> In queue
+                      </span>
+                    ) : (
+                      <Button
+                        size="md"
+                        onClick={() => onAdd(t)}
+                        loading={busy}
+                        disabled={disabled || (adding !== null && !busy)}
+                        aria-label={`Add ${t.title} to the queue`}
+                        className="px-3"
+                      >
+                        {!busy && <Plus className="size-4" aria-hidden />} Add
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : (
+          <p className="py-8 text-center text-zinc-500">Search SoundCloud for any song or artist.</p>
+        )}
+      </div>
+    </div>
+  );
+}

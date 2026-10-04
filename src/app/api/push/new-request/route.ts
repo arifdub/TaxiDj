@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     title: needsApproval ? `🎵 ${passenger.nickname} wants to play a song` : `🎵 ${passenger.nickname} added a song`,
     body: `${song.title}${song.artist ? ` · ${song.artist}` : ""}${needsApproval ? "\nTap to approve it." : ""}`,
     url: `/driver/ride/${song.ride_id}/queue`,
-    playUrl: needsApproval ? undefined : `https://music.youtube.com/watch?v=${song.youtube_video_id}`,
+    playUrl: needsApproval || !song.youtube_video_id ? undefined : `https://music.youtube.com/watch?v=${song.youtube_video_id}`,
     tag: `ride-${song.ride_id}`,
   });
   if (sent === 0) console.warn(`Push for ${requestId}: the driver has no devices with notifications on`);

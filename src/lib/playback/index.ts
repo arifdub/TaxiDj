@@ -34,21 +34,21 @@ export interface PlaybackProvider {
   actionLabel: string;
   capabilities: PlaybackCapabilities;
   /** URL that opens this item in the official YouTube experience. */
-  urlFor(item: Pick<SongRequest, "youtube_url">): string;
+  urlFor(item: Pick<SongRequest, "youtube_url" | "soundcloud_url">): string;
 }
 
 export const externalYouTubeProvider: PlaybackProvider = {
   id: "external",
   actionLabel: "Play on YouTube",
   capabilities: { remoteControl: false, progress: false, volume: false },
-  urlFor: (item) => item.youtube_url,
+  urlFor: (item) => item.youtube_url ?? item.soundcloud_url ?? "#",
 };
 
 export const embeddedYouTubeProvider: PlaybackProvider = {
   id: "embedded",
   actionLabel: "Play",
   capabilities: { remoteControl: true, progress: true, volume: true },
-  urlFor: (item) => item.youtube_url,
+  urlFor: (item) => item.youtube_url ?? item.soundcloud_url ?? "#",
 };
 
 export function providerFor(mode: PlaybackMode): PlaybackProvider {

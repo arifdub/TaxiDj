@@ -165,13 +165,13 @@ export function EmbeddedPlayerControls() {
       <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3">
         {current ? (
           <a
-            href={current.youtube_url}
+            href={(current.provider === "soundcloud" ? current.soundcloud_url : current.youtube_url) ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
             onClick={player.pause}
             className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-line bg-night-3 text-sm font-bold"
           >
-            <ExternalLink className="size-5" aria-hidden /> Open in YouTube app
+            <ExternalLink className="size-5" aria-hidden /> {current.provider === "soundcloud" ? "Open in SoundCloud" : "Open in YouTube app"}
           </a>
         ) : (
           <span className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-line bg-night-3 text-sm font-bold opacity-40">

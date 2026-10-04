@@ -120,6 +120,7 @@ Copy `.env.example` to `.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser + server. Supabase project URL (Settings → API). | ✅ |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server. Anon/publishable key. Safe to expose because RLS protects the data. | ✅ |
 | `YOUTUBE_API_KEY` | **Server only**, in `/api/youtube/*`. Enables search. | Optional |
+| `SOUNDCLOUD_CLIENT_ID`, `SOUNDCLOUD_CLIENT_SECRET` | **Server only**, in `/api/soundcloud/*`. Enables the SoundCloud tab. | Optional |
 | `NEXT_PUBLIC_SITE_URL` | Browser. Base URL encoded in QR codes (e.g. `https://taxidj.com`). Defaults to the current origin. | Optional |
 
 The app **never uses a service-role key**. Don't add one.
@@ -282,6 +283,19 @@ The Player tab has a **Local radio** section for when the queue is empty.
 - **Code:** `src/lib/radio/*` (Radio Browser client), `/api/radio/stations` and `/api/radio/click` (play count, as Radio Browser asks). No API key needed.
 
 Radio Garden has no official embed or public API, so it isn't used.
+
+## SoundCloud (optional)
+
+With SoundCloud keys set, passengers and the driver get a **SoundCloud** tab next to Music search. They can search by song or artist, or paste a soundcloud.com link, and add tracks to the same queue as YouTube songs.
+
+- **Playback:** SoundCloud songs play inside Taxi DJ in a normal audio player, like the radio. Because there's no video, they keep playing when the screen is locked or another app is open (where the phone allows it), and they show on the lock screen, CarPlay, Android Auto and Bluetooth with play/pause/next.
+- **Mixed queue:** the queue can mix YouTube and SoundCloud songs; auto-play moves from one to the other. SoundCloud songs always play in Taxi DJ (they can't go to the YouTube app).
+- **No downloading or re-hosting:** `/api/soundcloud/stream` asks SoundCloud's official API for the track's stream link and redirects the player to it. The audio comes straight from SoundCloud.
+- **Only full, playable tracks** are listed. Preview-only (30-second) and blocked tracks are hidden.
+- **Attribution:** every result shows the uploader and links back to the track on SoundCloud.
+- **Limits:** SoundCloud allows about 15,000 plays a day per app. If that runs out, the tab says so and YouTube still works.
+- **Keys:** register an app at [soundcloud.com/you/apps](https://soundcloud.com/you/apps), then set `SOUNDCLOUD_CLIENT_ID` and `SOUNDCLOUD_CLIENT_SECRET` (server only). SoundCloud reviews new apps, and its terms restrict commercial use. Taxi DJ uses it for personal, non-commercial playback.
+- **Code:** `src/lib/soundcloud/*`, `/api/soundcloud/search`, `/api/soundcloud/stream`, migration `20261004000000_soundcloud.sql`.
 
 ## Push notifications and auto-play
 

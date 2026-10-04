@@ -3,17 +3,26 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Link2, Search } from "lucide-react";
-import { PastePanel, SearchPanel, SpotifyIcon, SpotifyPanel, TabButton } from "@/components/music/AddSongPanels";
+import {
+  PastePanel,
+  SearchPanel,
+  SoundCloudIcon,
+  SoundCloudPanel,
+  SpotifyIcon,
+  SpotifyPanel,
+  TabButton,
+  type SoundCloudResult,
+} from "@/components/music/AddSongPanels";
 import { PassengerHeader } from "@/components/passenger/PassengerFrame";
 import { usePassenger } from "@/components/passenger/PassengerContext";
 import { RequireJoined } from "@/components/passenger/RequireJoined";
 import { Notice } from "@/components/ui";
-import { addSongRequest } from "@/lib/api";
+import { addSongRequest, addSoundCloudRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { matchSpotifyTrack } from "@/lib/music/client";
 import type { RequestSource, SpotifyTrack, VideoResult } from "@/lib/types";
 
-type Tab = "search" | "spotify" | "paste";
+type Tab = "search" | "soundcloud" | "spotify" | "paste";
 
 export default function MusicPage() {
   return (
@@ -34,6 +43,7 @@ function AddMusic() {
   // Spotify tab: pasted links work without Spotify keys; search needs keys.
   const [spotifyConfigured, setSpotifyConfigured] = useState(false);
   const [spotifySearch, setSpotifySearch] = useState(false);
+  const [soundCloudConfigured, setSoundCloudConfigured] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
@@ -45,6 +55,7 @@ function AddMusic() {
         setSearchConfigured(Boolean(c.youtubeSearch));
         setSpotifyConfigured(Boolean(c.spotifyLinks ?? c.spotifySearch));
         setSpotifySearch(Boolean(c.spotifySearch));
+        setSoundCloudConfigured(Boolean(c.soundcloud));
         if (!c.youtubeSearch) setTab("paste");
       })
       .catch(() => setSearchConfigured(false));
@@ -54,7 +65,13 @@ function AddMusic() {
   const inQueue = new Set(
     queue
       .filter((q) => q.status === "pending" || q.status === "queued" || q.status === "playing")
-      .map((q) => q.youtube_video_id),
+      .map((q) => q.youtube_video_id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const soundCloudInQueue = new Set(
+    queue
+      .filter((q) => q.soundcloud_track_id && (q.status === "pending" || q.status === "queued" || q.status === "playing"))
+      .map((q) => q.soundcloud_track_id!),
   );
   const spotifyInQueue = new Set(
     queue
@@ -85,6 +102,33 @@ function AddMusic() {
           spotifyTrackId: opts.spotifyTrackId,
         });
         setAdded(video.title);
+        await refresh();
+      } catch (err) {
+        setAddError(friendlyError(err));
+        refresh();
+      } finally {
+        setAdding(null);
+      }
+    },
+    [ride, refresh],
+  );
+  const addSoundCloud = useCallback(
+    async (t: SoundCloudResult) => {
+      if (!ride) return;
+      setAdding(t.id);
+      setAddError(null);
+      setAdded(null);
+      try {
+        await addSoundCloudRequest({
+          rideId: ride.id,
+          trackId: t.id,
+          title: t.title,
+          artist: t.artist,
+          durationSeconds: t.durationSeconds,
+          url: t.permalinkUrl,
+          artworkUrl: t.artworkUrl,
+        });
+        setAdded(t.title);
         await refresh();
       } catch (err) {
         setAddError(friendlyError(err));
@@ -147,10 +191,20 @@ function AddMusic() {
         </Notice>
       )}
 
-      <div role="tablist" aria-label="How to add music" className={`mt-5 grid ${spotifyConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
+      <div
+        role="tablist"
+        aria-label="How to add music"
+        // 2 or 4 tabs: two per row; 3 tabs: one row.
+        className={`mt-5 grid ${spotifyConfigured !== soundCloudConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}
+      >
         <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="size-4" />}>
           Music
         </TabButton>
+        {soundCloudConfigured && (
+          <TabButton active={tab === "soundcloud"} onClick={() => setTab("soundcloud")} icon={<SoundCloudIcon className="size-4" />}>
+            SoundCloud
+          </TabButton>
+        )}
         {spotifyConfigured && (
           <TabButton active={tab === "spotify"} onClick={() => setTab("spotify")} icon={<SpotifyIcon className="size-4" />}>
             Spotify
@@ -162,7 +216,18 @@ function AddMusic() {
       </div>
 
       <div className="mt-4">
-        {tab === "spotify" ? (
+        {tab === "soundcloud" ? (
+          <SoundCloudPanel
+            onAdd={addSoundCloud}
+            adding={adding}
+            inQueue={soundCloudInQueue}
+            disabled={limitReached}
+            onUnavailable={() => {
+              setSoundCloudConfigured(false);
+              setTab("search");
+            }}
+          />
+        ) : tab === "spotify" ? (
             <SpotifyPanel
               searchEnabled={spotifySearch}
               onAdd={addSpotify}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowDown, ArrowUp, AudioLines, Ban, Check, CircleCheck, Ellipsis, ListVideo, Music2, Pause, Play, Trash2, UserRound } from "lucide-react";
 import { PlayLink } from "@/components/driver/PlayLink";
-import { SpotifyIcon } from "@/components/music/AddSongPanels";
+import { SoundCloudIcon, SpotifyIcon } from "@/components/music/AddSongPanels";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { StatusBadge, Thumbnail } from "@/components/ui";
@@ -60,14 +60,14 @@ export function QueueCard({
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-base font-bold leading-tight">{item.title}</p>
           <p className="truncate text-sm text-mist">
-            {item.artist ?? "YouTube"}
+            {item.artist ?? (item.provider === "soundcloud" ? "SoundCloud" : "YouTube")}
             {item.duration_seconds ? ` · ${formatDuration(item.duration_seconds)}` : ""}
           </p>
           <p className="mt-1 flex items-center gap-1 truncate text-xs font-semibold text-taxi">
             <UserRound className="size-3.5" aria-hidden /> {item.passenger?.nickname ?? "Passenger"}
           </p>
         </div>
-        {playing && player?.embedded ? (
+        {playing && (player?.embedded || (player && item.provider === "soundcloud")) ? (
           // The song in the Taxi DJ player: Pause while playing, Play when paused.
           <button
             type="button"
@@ -108,6 +108,20 @@ export function QueueCard({
       </div>
 
       {/* Open just this song in the YouTube Music / YouTube app (plays now). */}
+      {item.provider === "soundcloud" ? (
+        // SoundCloud songs play in Taxi DJ; this opens the track's page.
+        <div className="mt-3 grid grid-cols-1 gap-2">
+          <a
+            href={item.soundcloud_url ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${item.title} on SoundCloud`}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-[#FF5500]/50 bg-[#FF5500]/15 px-2 text-sm font-bold text-white hover:bg-[#FF5500]/25"
+          >
+            <SoundCloudIcon className="size-4 shrink-0" /> SoundCloud · plays in Taxi DJ
+          </a>
+        </div>
+      ) : (
       <div className={`mt-3 grid gap-2 ${item.spotify_url ? "grid-cols-3" : "grid-cols-2"}`}>
         <OpenInApp item={item} target="youtube_music" onOpen={() => { player?.handOff(); playNow(); }} />
         <OpenInApp item={item} target="youtube" onOpen={() => { player?.handOff(); playNow(); }} />
@@ -125,6 +139,7 @@ export function QueueCard({
           </a>
         )}
       </div>
+      )}
       {(playing || played || item.sent_to_youtube_at) && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {(playing || played) && <StatusBadge status={item.status} />}
@@ -191,7 +206,7 @@ function OpenInApp({
   const music = target === "youtube_music";
   return (
     <a
-      href={youTubeWatchUrl(item.youtube_video_id, target)}
+      href={youTubeWatchUrl(item.youtube_video_id ?? "", target)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={onOpen}

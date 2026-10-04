@@ -19,12 +19,13 @@ export function PlayLink({
   children,
   ...props
 }: Omit<ComponentProps<"a">, "href"> & {
-  item: Pick<SongRequest, "id" | "youtube_video_id" | "youtube_url">;
+  item: Pick<SongRequest, "id" | "provider" | "youtube_video_id" | "youtube_url" | "soundcloud_track_id">;
   onPlay?: () => void;
 }) {
   const player = usePlayer();
 
-  if (player?.embedded) {
+  // SoundCloud songs always play in Taxi DJ (plain audio), in any mode.
+  if (player && (player.embedded || item.provider === "soundcloud")) {
     const { className, title, id, style } = props;
     return (
       <button
@@ -46,7 +47,7 @@ export function PlayLink({
 
   return (
     <a
-      href={item.youtube_url}
+      href={item.youtube_url ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => onPlay?.()}

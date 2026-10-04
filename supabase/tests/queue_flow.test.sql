@@ -486,5 +486,56 @@ do $$ begin
   assert (select count(*) from public.push_subscriptions) = 0, 'driver deletes own subscription';
 end $$;
 
+
+-- SoundCloud songs ---------------------------------------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+delete from ctx where k in ('scride', 'sccode');
+insert into ctx select 'scride', id::text from public.rides
+  where driver_id = '00000000-0000-0000-0000-00000000000e'::uuid and status = 'active';
+insert into ctx select 'sccode', join_code from public.rides where id = (select v::uuid from ctx where k='scride');
+select public.update_driver_settings('My Taxi', true, 3);
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
+select public.join_ride((select v from ctx where k='sccode'), 'Mia');
+do $$
+declare r public.song_requests;
+begin
+  r := public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '123456789', 'Night Drive', 'DJ Test', 215,
+        'https://soundcloud.com/djtest/night-drive', 'https://i1.sndcdn.com/artworks-abc-t500x500.jpg');
+  assert r.provider = 'soundcloud' and r.youtube_video_id is null and r.youtube_url is null, 'soundcloud song stored without YouTube';
+  assert r.status = 'queued' and r.thumbnail_url like 'https://i1.sndcdn.com/%', 'queued with artwork';
+  r := public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '222', 'No Art', null, null,
+        'https://soundcloud.com/a/b', null);
+  assert r.thumbnail_url = '/icons/512', 'fallback artwork';
+end $$;
+select pg_temp.expect_error($q$select public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '123456789', 'Dup', null, null, 'https://soundcloud.com/djtest/night-drive', null)$q$, 'DUPLICATE_REQUEST');
+select pg_temp.expect_error($q$select public.add_soundcloud_request((select v::uuid from ctx where k='scride'), 'abc', 'x', null, null, 'https://soundcloud.com/a/b', null)$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '333', 'x', null, null, 'https://evil.example.com/a', null)$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '333', 'x', null, null, 'https://soundcloud.com/a/b', 'https://evil.example.com/x.jpg')$q$, 'INVALID_VIDEO');
+-- Limit counts SoundCloud and YouTube songs together (limit 3).
+select public.add_song_request((select v::uuid from ctx where k='scride'), 'YQHsXMglC9A', 'Hello');
+select pg_temp.expect_error($q$select public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '444', 'x', null, null, 'https://soundcloud.com/a/c', null)$q$, 'REQUEST_LIMIT_REACHED');
+-- Strangers can't add.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+select pg_temp.expect_error($q$select public.add_soundcloud_request((select v::uuid from ctx where k='scride'), '555', 'x', null, null, 'https://soundcloud.com/a/d', null)$q$, 'NOT_A_PASSENGER');
+select pg_temp.expect_error($q$select public.driver_add_soundcloud_song((select v::uuid from ctx where k='scride'), '555', 'x', null, null, 'https://soundcloud.com/a/d', null)$q$, 'RIDE_NOT_FOUND');
+-- Driver adds one; play / next / previous work across providers.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+do $$
+declare r public.song_requests; v_sc uuid; v_yt uuid;
+begin
+  r := public.driver_add_soundcloud_song((select v::uuid from ctx where k='scride'), '999', 'Driver Pick', 'Artist', 180,
+        'https://soundcloud.com/x/driver-pick', null);
+  assert r.status = 'queued' and r.provider = 'soundcloud', 'driver soundcloud song queued';
+  select id into v_sc from public.song_requests where soundcloud_track_id = '123456789' and ride_id = (select v::uuid from ctx where k='scride');
+  select id into v_yt from public.song_requests where youtube_video_id = 'YQHsXMglC9A' and ride_id = (select v::uuid from ctx where k='scride');
+  perform public.driver_update_request(v_sc, 'play');
+  perform public.driver_update_request(v_yt, 'play');
+  assert (select status from public.song_requests where id = v_sc) = 'played', 'soundcloud song played';
+  r := public.driver_skip((select v::uuid from ctx where k='scride'), 'previous');
+  assert r.id = v_sc, 'previous goes back to the soundcloud song';
+  -- replaying a played soundcloud song works
+  perform public.driver_skip((select v::uuid from ctx where k='scride'), 'next');
+end $$;
+
 reset role;
 \echo 'ALL TAXI DJ SQL TESTS PASSED'
