@@ -33,8 +33,8 @@ export function TaxiDJMark({
       {/* checker stripe */}
       <path d="M8 43.5h50v1.5a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3Z" fill="#09090C" opacity=".85" />
       {/* wheels */}
-      <rect x="12" y="46" width="9" height="9" rx="2.5" fill="#09090C" />
-      <rect x="45" y="46" width="9" height="9" rx="2.5" fill="#09090C" />
+      <rect x="12" y="46" width="9" height="9" rx="2.5" fill="#6B6B78" />
+      <rect x="45" y="46" width="9" height="9" rx="2.5" fill="#6B6B78" />
     </svg>
   );
 }
