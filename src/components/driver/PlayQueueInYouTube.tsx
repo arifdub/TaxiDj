@@ -20,8 +20,8 @@ export function PlayQueueInYouTube() {
   // Every approved song still in the ride's list, in play order.
   const songs = queue
     .filter((q) => q.status === "queued" || q.status === "playing" || q.status === "played")
-    // SoundCloud songs play in Taxi DJ itself, not in the YouTube app.
-    .filter((q) => q.provider !== "soundcloud" && q.youtube_video_id)
+    // SoundCloud songs and audio file links play in Taxi DJ itself, not in the YouTube app.
+    .filter((q) => q.provider === "youtube" && q.youtube_video_id)
     .sort((a, b) => a.position - b.position)
     .slice(0, MAX_QUEUE_LINK_VIDEOS);
   const href = youTubeQueueUrl(songs.map((q) => q.youtube_video_id!));

@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { Music2, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { SpotifyIcon } from "@/components/music/AddSongPanels";
+import { SourceIcon } from "@/components/music/SourceIcon";
 import { PassengerHeader } from "@/components/passenger/PassengerFrame";
 import { usePassenger } from "@/components/passenger/PassengerContext";
 import { RequireJoined } from "@/components/passenger/RequireJoined";
-import { ButtonLink, EmptyState, Notice, SongSkeleton, StatusBadge, Thumbnail, YouTubeIcon } from "@/components/ui";
-import { addSongRequest, addSoundCloudRequest, removeMyRequest } from "@/lib/api";
+import { ButtonLink, EmptyState, Notice, SongSkeleton, StatusBadge, Thumbnail } from "@/components/ui";
+import { addAudioLinkRequest, addSongRequest, addSoundCloudRequest, removeMyRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { nowPlaying, upNext } from "@/lib/queue";
+import { sourceName } from "@/lib/sources";
 import type { QueueItem } from "@/lib/types";
 
 
@@ -66,7 +67,15 @@ function MyRequests() {
     run(
       item.id,
       () =>
-        item.provider === "soundcloud"
+        item.provider === "audio"
+          ? addAudioLinkRequest({
+              rideId: ride!.id,
+              url: item.audio_url!,
+              title: item.title,
+              artist: item.artist,
+              durationSeconds: item.duration_seconds,
+            })
+          : item.provider === "soundcloud"
           ? addSoundCloudRequest({
               rideId: ride!.id,
               trackId: item.soundcloud_track_id!,
@@ -142,12 +151,8 @@ function MyRequests() {
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 font-bold leading-snug">{item.title}</p>
                       <p className="mt-0.5 flex items-center gap-1 truncate text-sm text-zinc-500">
-                        {item.spotify_track_id ? (
-                          <SpotifyIcon className="size-3 shrink-0" />
-                        ) : (
-                          <YouTubeIcon className="h-3 w-auto shrink-0" />
-                        )}{" "}
-                        {item.artist ?? (item.provider === "soundcloud" ? "SoundCloud" : "YouTube")}
+                        <SourceIcon song={item} />{" "}
+                        {item.artist ?? sourceName(item)}
                       </p>
                     </div>
                     <StatusBadge status={item.status} rank={rank.get(item.id)} />

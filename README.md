@@ -284,6 +284,20 @@ The Player tab has a **Local radio** section for when the queue is empty.
 
 Radio Garden has no official embed or public API, so it isn't used.
 
+## Song files from a link (Google Drive, Dropbox, any web address)
+
+Passengers and the driver have a **File link** tab. Paste a share link to a song file, and it joins the same queue as YouTube songs. No keys or setup needed.
+
+- **Google Drive:** a file's share link (`drive.google.com/file/d/…`) is turned into Drive's direct-file address. The file must be shared as "Anyone with the link". Folder links are refused with a message.
+- **Dropbox:** share links are switched from the preview page (`dl=0`) to the file itself (`raw=1`).
+- **Anything else:** any `https://` link that serves an audio file (MP3, M4A, AAC, WAV, OGG…). The song name is guessed from the file name and can be edited.
+- **Playback:** the driver's phone plays the file straight from that address in Taxi DJ's audio player, like the radio, so it keeps playing in the background and with the screen locked, and shows on the lock screen, CarPlay, Android Auto and Bluetooth with play/pause/next. Nothing is uploaded to or stored by Taxi DJ, and no server fetches the file.
+- **Checks:** the Add screen tries the link on the phone first and says if it doesn't open as audio (the passenger can still add it). If a file can't play in the car, the player says so and offers to skip.
+- **Safety:** only `https` links are accepted, and links to the phone itself or private network addresses (e.g. `192.168.…`, `.local`) are refused, in the app and again in the database (`audio_link_ok`).
+- If a YouTube box gets a Drive or Dropbox link, it offers to add it as a song file instead.
+- **Code:** `src/lib/audio/link.ts` (link reading, unit-tested), `src/lib/sources.ts`, the `AudioLinkPanel` in `src/components/music/AddSongPanels.tsx`, migration `20261007000000_audio_links.sql`.
+- Very large Google Drive files (over about 100 MB) show a virus-scan page instead of the file and won't play. Songs are far smaller than that.
+
 ## SoundCloud (optional)
 
 With SoundCloud keys set, passengers and the driver get a **SoundCloud** tab next to Music search. They can search by song or artist, or paste a soundcloud.com link, and add tracks to the same queue as YouTube songs.

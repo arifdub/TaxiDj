@@ -63,14 +63,16 @@ export interface SongRequest {
   title: string;
   artist: string | null;
   thumbnail_url: string;
-  /** Where the song plays from: YouTube video, or SoundCloud audio stream. */
-  provider: "youtube" | "soundcloud";
-  /** YouTube songs only (null for SoundCloud songs). */
+  /** Where the song plays from: YouTube video, SoundCloud stream, or an audio file link. */
+  provider: "youtube" | "soundcloud" | "audio";
+  /** YouTube songs only (null for other songs). */
   youtube_url: string | null;
   youtube_video_id: string | null;
   /** SoundCloud songs only. */
   soundcloud_track_id: string | null;
   soundcloud_url: string | null;
+  /** Audio file links only: the file's https address (Google Drive, Dropbox…). */
+  audio_url: string | null;
   source: RequestSource;
   duration_seconds: number | null;
   status: RequestStatus;

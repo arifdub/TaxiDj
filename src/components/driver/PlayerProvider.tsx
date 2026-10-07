@@ -21,6 +21,7 @@ import type { PlaybackMode } from "@/lib/playback";
 import { loadYouTubeIframeApi, YT_STATE, type YTPlayer } from "@/lib/playback/youtube-iframe";
 import { claimMediaSession, setMediaState } from "@/lib/media-session";
 import { nextToPlay, nowPlaying } from "@/lib/queue";
+import { audioSrcFor, playsAsAudio, sourceName, sourceUrl } from "@/lib/sources";
 import type { SongRequest } from "@/lib/types";
 
 // In-app playback using YouTube's official IFrame Player API.
@@ -36,8 +37,8 @@ import type { SongRequest } from "@/lib/types";
 export type PlayerStatus = "idle" | "playing" | "paused" | "buffering" | "ended" | "error";
 export type PlayerError = "NOT_EMBEDDABLE" | "NOT_FOUND" | "FAILED";
 
-type Playable = Pick<SongRequest, "id" | "provider" | "youtube_video_id" | "youtube_url" | "soundcloud_track_id">;
-export type EngineKind = "youtube" | "soundcloud";
+type Playable = Pick<SongRequest, "id" | "provider" | "youtube_video_id" | "youtube_url" | "soundcloud_track_id" | "audio_url">;
+export type EngineKind = "youtube" | "audio";
 
 interface PlayerContextValue {
   mode: PlaybackMode;
@@ -45,7 +46,7 @@ interface PlayerContextValue {
   embedded: boolean;
   ready: boolean;
   apiUnavailable: boolean;
-  /** Which engine plays the current song: the YouTube player, or plain audio (SoundCloud). */
+  /** Which engine plays the current song: the YouTube player, or plain audio (SoundCloud, audio file links). */
   engine: EngineKind | null;
   status: PlayerStatus;
   error: PlayerError | null;
@@ -88,8 +89,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playerRef = useRef<YTPlayer | null>(null);
   /** The request currently loaded in the player. */
   const loadedRef = useRef<{ requestId: string } | null>(null);
-  // SoundCloud songs play in a plain <audio> element (like the radio), so
-  // they keep playing with the screen locked. YouTube songs use the player.
+  // SoundCloud songs and audio file links play in a plain <audio> element
+  // (like the radio), so they keep playing with the screen locked. YouTube
+  // songs use the YouTube player.
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const activeRef = useRef<EngineKind | null>(null);
   const [engineKind, setEngineKind] = useState<EngineKind | null>(null);
@@ -165,14 +167,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!audioRef.current) {
       const a = new Audio();
       a.preload = "auto";
-      a.addEventListener("playing", () => handleState("soundcloud", YT_STATE.PLAYING));
+      a.addEventListener("playing", () => handleState("audio", YT_STATE.PLAYING));
       a.addEventListener("pause", () => {
-        if (!a.ended) handleState("soundcloud", YT_STATE.PAUSED);
+        if (!a.ended) handleState("audio", YT_STATE.PAUSED);
       });
-      a.addEventListener("waiting", () => handleState("soundcloud", YT_STATE.BUFFERING));
-      a.addEventListener("ended", () => handleState("soundcloud", YT_STATE.ENDED));
+      a.addEventListener("waiting", () => handleState("audio", YT_STATE.BUFFERING));
+      a.addEventListener("ended", () => handleState("audio", YT_STATE.ENDED));
       a.addEventListener("error", () => {
-        if (activeRef.current !== "soundcloud" || !a.getAttribute("src")) return;
+        if (activeRef.current !== "audio" || !a.getAttribute("src")) return;
         clearTimeout(tapTimerRef.current);
         setNeedsTap(false);
         setStatus("error");
@@ -186,12 +188,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** Load (and optionally start) a song in the right engine. False if it can't play here. */
   const startSong = useCallback(
     (item: Playable, autoplay: boolean): boolean => {
-      if (item.provider === "soundcloud" && item.soundcloud_track_id) {
-        activeRef.current = "soundcloud";
-        setEngineKind("soundcloud");
+      const src = audioSrcFor(item);
+      if (src) {
+        activeRef.current = "audio";
+        setEngineKind("audio");
         playerRef.current?.pauseVideo();
         const a = getAudio();
-        a.src = `/api/soundcloud/stream?id=${encodeURIComponent(item.soundcloud_track_id)}`;
+        a.src = src;
         if (autoplay) {
           setStatus("buffering");
           a.play().catch(() => {
@@ -224,17 +227,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const engine = useMemo(
     () => ({
       play: () => {
-        if (activeRef.current === "soundcloud") {
+        if (activeRef.current === "audio") {
           audioRef.current?.play().catch(() => setNeedsTap(true));
         } else playerRef.current?.playVideo();
       },
       pause: () => {
-        if (activeRef.current === "soundcloud") audioRef.current?.pause();
+        if (activeRef.current === "audio") audioRef.current?.pause();
         else playerRef.current?.pauseVideo();
       },
       stop: () => {
         const a = audioRef.current;
-        if (activeRef.current === "soundcloud" && a) {
+        if (activeRef.current === "audio" && a) {
           a.pause();
           a.removeAttribute("src");
           a.load();
@@ -242,7 +245,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } else playerRef.current?.stopVideo();
       },
       seek: (seconds: number) => {
-        if (activeRef.current === "soundcloud") {
+        if (activeRef.current === "audio") {
           if (audioRef.current) audioRef.current.currentTime = seconds;
         } else playerRef.current?.seekTo(seconds, true);
       },
@@ -302,7 +305,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             },
             onStateChange: ({ data }) => handleStateRef.current("youtube", data),
             onError: ({ data }) => {
-              if (activeRef.current === "soundcloud") return;
+              if (activeRef.current === "audio") return;
               clearTimeout(tapTimerRef.current);
               setNeedsTap(false);
               setStatus("error");
@@ -322,7 +325,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playerRef.current = null;
       host.replaceChildren();
       setReady(false);
-      if (activeRef.current !== "soundcloud") {
+      if (activeRef.current !== "audio") {
         loadedRef.current = null;
         firstSyncRef.current = true;
         setStatus("idle");
@@ -336,8 +339,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const song = currentRef.current;
     const ytReady = embedded && ready && Boolean(playerRef.current);
-    // YouTube songs need the YouTube player; SoundCloud songs play anywhere.
-    if (song?.provider !== "soundcloud" && !ytReady && !(activeRef.current === "soundcloud" && !song)) return;
+    // YouTube songs need the YouTube player; audio songs play anywhere.
+    if (!(song && playsAsAudio(song)) && !ytReady && !(activeRef.current === "audio" && !song)) return;
     const initial = firstSyncRef.current;
     firstSyncRef.current = false;
 
@@ -360,7 +363,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Poll position / volume from the active engine.
   useEffect(() => {
     const t = setInterval(() => {
-      if (activeRef.current === "soundcloud") {
+      if (activeRef.current === "audio") {
         const a = audioRef.current;
         if (!a) return;
         setTime(a.currentTime || 0);
@@ -381,7 +384,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [ready]);
 
-  // Leaving the ride: stop SoundCloud audio.
+  // Leaving the ride: stop the audio player.
   useEffect(
     () => () => {
       const a = audioRef.current;
@@ -395,8 +398,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // Keep the screen awake while music plays (iOS pauses embeds on lock).
   useEffect(() => {
-    // YouTube in-app playback stops when the screen locks; SoundCloud doesn't.
-    if (!embedded || engineKind === "soundcloud" || status !== "playing" || !("wakeLock" in navigator)) return;
+    // YouTube in-app playback stops when the screen locks; plain audio doesn't.
+    if (!embedded || engineKind === "audio" || status !== "playing" || !("wakeLock" in navigator)) return;
     let lock: WakeLockSentinel | null = null;
     let cancelled = false;
     const request = () =>
@@ -421,7 +424,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(
     (item: Playable) => {
-      if (item.provider !== "soundcloud" && !playerRef.current) return;
+      if (!playsAsAudio(item) && !playerRef.current) return;
       handedOffRef.current = false;
       advancingRef.current = null;
       setClosed(false);
@@ -446,14 +449,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // next / previous buttons drive the Taxi DJ queue.
   const nowPlayingTitle = current?.title ?? null;
   useEffect(() => {
-    if (!embedded && engineKind !== "soundcloud") return;
+    if (!embedded && engineKind !== "audio") return;
     const song = currentRef.current;
     if (song && (status === "playing" || status === "buffering")) {
       claimMediaSession(
         "song",
         {
           title: song.title,
-          artist: song.artist ?? (song.provider === "soundcloud" ? "SoundCloud" : "YouTube"),
+          artist: song.artist ?? sourceName(song),
           album: song.passenger?.nickname ? `Requested by ${song.passenger.nickname} · Taxi DJ` : "Taxi DJ",
           artwork: song.thumbnail_url,
         },
@@ -501,8 +504,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (status === "playing" || status === "buffering" || status === "paused") return;
     const next = nextToPlay(queue);
     if (!next) return;
-    // YouTube songs need the Taxi DJ player; SoundCloud songs play in any mode.
-    if (next.provider !== "soundcloud" && (!embedded || !ready)) return;
+    // YouTube songs need the Taxi DJ player; audio songs play in any mode.
+    if (!playsAsAudio(next) && (!embedded || !ready)) return;
     queueMicrotask(() => {
       load(next);
       actRef.current(next.id, "play");
@@ -539,7 +542,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       stop: engine.stop,
       seek: engine.seek,
       setVolume: (v) => {
-        if (activeRef.current === "soundcloud") {
+        if (activeRef.current === "audio") {
           const a = audioRef.current;
           if (!a) return;
           a.volume = Math.max(0, Math.min(1, v / 100));
@@ -554,7 +557,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setVolumeState(v);
       },
       toggleMute: () => {
-        if (activeRef.current === "soundcloud") {
+        if (activeRef.current === "audio") {
           const a = audioRef.current;
           if (!a) return;
           a.muted = !a.muted;
@@ -573,8 +576,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const active = status === "playing" || status === "paused" || status === "buffering";
   const audible = status === "playing" || status === "buffering";
-  const scCurrent = current?.provider === "soundcloud";
-  // In YouTube-app mode there's no YouTube player, but SoundCloud songs still
+  const scCurrent = Boolean(current && playsAsAudio(current));
+  // In YouTube-app mode there's no YouTube player, but audio songs still
   // play here, so a small player appears for them (outside the Player tab).
   const showSurface = embedded
     ? onPlayerRoute || Boolean(current) || active
@@ -634,7 +637,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               }`}
             />
             {scCurrent && current && (
-              // SoundCloud songs have no video: show the artwork instead.
+              // Audio songs have no video: show the artwork instead.
               // eslint-disable-next-line @next/next/no-img-element
               <img src={current.thumbnail_url} alt="" className="absolute inset-0 size-full object-cover" />
             )}
@@ -665,7 +668,7 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
   const player = usePlayer()!;
   const { skip, queue } = useDriverRide();
 
-  const sc = current?.provider === "soundcloud";
+  const sc = Boolean(current && playsAsAudio(current));
   if (player.apiUnavailable && !sc) {
     return (
       <Overlay>
@@ -679,13 +682,16 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
   }
 
   if (player.error && current) {
-    const message = sc
-      ? "This SoundCloud track couldn't be played."
-      : player.error === "NOT_EMBEDDABLE"
-        ? "This song's owner doesn't allow it to play inside other apps."
-        : player.error === "NOT_FOUND"
-          ? "This video is unavailable or private."
-          : "This video couldn't be played.";
+    const message =
+      current.provider === "audio"
+        ? "This audio file couldn't be played. Check the link is shared publicly (anyone with the link)."
+        : sc
+          ? "This SoundCloud track couldn't be played."
+          : player.error === "NOT_EMBEDDABLE"
+            ? "This song's owner doesn't allow it to play inside other apps."
+            : player.error === "NOT_FOUND"
+              ? "This video is unavailable or private."
+              : "This video couldn't be played.";
     const next = nextToPlay(queue);
     return (
       <Overlay>
@@ -693,12 +699,12 @@ function PlayerOverlay({ current }: { current: SongRequest | null }) {
         <p className="font-bold leading-snug">{message}</p>
         <div className="flex w-full flex-col gap-1.5">
           <a
-            href={(sc ? current.soundcloud_url : current.youtube_url) ?? "#"}
+            href={sourceUrl(current)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-sm font-bold text-ink"
           >
-            <ExternalLink className="size-4" aria-hidden /> {sc ? "Open in SoundCloud" : "Open in YouTube"}
+            <ExternalLink className="size-4" aria-hidden /> {current.provider === "audio" ? "Open the file" : sc ? "Open in SoundCloud" : "Open in YouTube"}
           </a>
           <button
             type="button"

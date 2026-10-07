@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { usePlayer } from "@/components/driver/PlayerProvider";
+import { playsAsAudio } from "@/lib/sources";
 import type { SongRequest } from "@/lib/types";
 
 /**
@@ -19,13 +20,13 @@ export function PlayLink({
   children,
   ...props
 }: Omit<ComponentProps<"a">, "href"> & {
-  item: Pick<SongRequest, "id" | "provider" | "youtube_video_id" | "youtube_url" | "soundcloud_track_id">;
+  item: Pick<SongRequest, "id" | "provider" | "youtube_video_id" | "youtube_url" | "soundcloud_track_id" | "audio_url">;
   onPlay?: () => void;
 }) {
   const player = usePlayer();
 
-  // SoundCloud songs always play in Taxi DJ (plain audio), in any mode.
-  if (player && (player.embedded || item.provider === "soundcloud")) {
+  // SoundCloud songs and audio file links always play in Taxi DJ (plain audio), in any mode.
+  if (player && (player.embedded || playsAsAudio(item))) {
     const { className, title, id, style } = props;
     return (
       <button

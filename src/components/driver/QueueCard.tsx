@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, AudioLines, Ban, Check, CircleCheck, Ellipsis, ListVideo, Music2, Pause, Play, Trash2, UserRound } from "lucide-react";
+import { ArrowDown, ArrowUp, AudioLines, Ban, Check, CircleCheck, Ellipsis, FileAudio, ListVideo, Music2, Pause, Play, Trash2, UserRound } from "lucide-react";
 import { PlayLink } from "@/components/driver/PlayLink";
 import { SoundCloudIcon, SpotifyIcon } from "@/components/music/AddSongPanels";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
 import { StatusBadge, Thumbnail } from "@/components/ui";
 import { formatDuration } from "@/lib/format";
+import { playsAsAudio, sourceName } from "@/lib/sources";
 import type { QueueItem, RequestSource } from "@/lib/types";
 import { youTubeWatchUrl } from "@/lib/youtube/parse";
 
@@ -60,14 +61,14 @@ export function QueueCard({
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-base font-bold leading-tight">{item.title}</p>
           <p className="truncate text-sm text-mist">
-            {item.artist ?? (item.provider === "soundcloud" ? "SoundCloud" : "YouTube")}
+            {item.artist ?? sourceName(item)}
             {item.duration_seconds ? ` · ${formatDuration(item.duration_seconds)}` : ""}
           </p>
           <p className="mt-1 flex items-center gap-1 truncate text-xs font-semibold text-taxi">
             <UserRound className="size-3.5" aria-hidden /> {item.passenger?.nickname ?? "Passenger"}
           </p>
         </div>
-        {playing && (player?.embedded || (player && item.provider === "soundcloud")) ? (
+        {playing && (player?.embedded || (player && playsAsAudio(item))) ? (
           // The song in the Taxi DJ player: Pause while playing, Play when paused.
           <button
             type="button"
@@ -108,7 +109,20 @@ export function QueueCard({
       </div>
 
       {/* Open just this song in the YouTube Music / YouTube app (plays now). */}
-      {item.provider === "soundcloud" ? (
+      {item.provider === "audio" ? (
+        // Audio file links play in Taxi DJ; this opens the file itself.
+        <div className="mt-3 grid grid-cols-1 gap-2">
+          <a
+            href={item.audio_url ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open the audio file for ${item.title}`}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-line bg-night-3 px-2 text-sm font-bold text-white hover:bg-white/10"
+          >
+            <FileAudio className="size-4 shrink-0 text-taxi" aria-hidden /> Audio file · plays in Taxi DJ
+          </a>
+        </div>
+      ) : item.provider === "soundcloud" ? (
         // SoundCloud songs play in Taxi DJ; this opens the track's page.
         <div className="mt-3 grid grid-cols-1 gap-2">
           <a

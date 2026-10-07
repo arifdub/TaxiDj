@@ -7,7 +7,8 @@ insert into auth.users values
   ('00000000-0000-0000-0000-00000000000e'),  -- other driver
   ('00000000-0000-0000-0000-0000000000a1'),  -- passenger 1
   ('00000000-0000-0000-0000-0000000000a2'),  -- passenger 2
-  ('00000000-0000-0000-0000-0000000000a3');  -- stranger
+  ('00000000-0000-0000-0000-0000000000a3'),  -- stranger
+  ('00000000-0000-0000-0000-0000000000a4');  -- passenger 3 (audio links)
 
 create function pg_temp.as_user(p_uid text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p_uid, 'email', 'driver@example.com')::text, false);
@@ -536,6 +537,52 @@ begin
   -- replaying a played soundcloud song works
   perform public.driver_skip((select v::uuid from ctx where k='scride'), 'next');
 end $$;
+
+-- Audio file links ----------------------------------------------------------------
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a4');
+select public.join_ride((select v from ctx where k='sccode'), 'Leo');
+do $$
+declare r public.song_requests;
+begin
+  r := public.add_audio_link_request((select v::uuid from ctx where k='scride'),
+        'https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOp', 'My Mix', 'Google Drive');
+  assert r.provider = 'audio' and r.youtube_video_id is null and r.soundcloud_track_id is null, 'audio link stored on its own';
+  assert r.status = 'queued' and r.thumbnail_url = '/icons/512' and r.artist = 'Google Drive', 'queued with default artwork';
+  r := public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/a.mp3', '  ', null);
+  assert r.title = 'Audio file', 'blank title falls back';
+end $$;
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/a.mp3', 'Again')$q$, 'DUPLICATE_REQUEST');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'http://example.com/b.mp3', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://192.168.1.10/b.mp3', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://nas.local/b.mp3', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://localhost/b.mp3', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/b c.mp3', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'javascript:alert(1)', 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), null, 'x')$q$, 'INVALID_VIDEO');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/' || repeat('a', 2000), 'x')$q$, 'INVALID_VIDEO');
+-- Limit counts audio links with other songs (limit 3).
+select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/c.mp3', 'Third');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/d.mp3', 'x')$q$, 'REQUEST_LIMIT_REACHED');
+-- Strangers can't add.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+select pg_temp.expect_error($q$select public.add_audio_link_request((select v::uuid from ctx where k='scride'), 'https://example.com/e.mp3', 'x')$q$, 'NOT_A_PASSENGER');
+select pg_temp.expect_error($q$select public.driver_add_audio_link((select v::uuid from ctx where k='scride'), 'https://example.com/e.mp3', 'x')$q$, 'RIDE_NOT_FOUND');
+-- Driver adds one (no limit); play / previous work with audio links too.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000e');
+do $$
+declare r public.song_requests; v_au uuid; v_other uuid;
+begin
+  r := public.driver_add_audio_link((select v::uuid from ctx where k='scride'), 'https://www.dropbox.com/scl/fi/x/Song.mp3?raw=1', 'Driver File', 'Dropbox');
+  assert r.status = 'queued' and r.provider = 'audio', 'driver audio link queued';
+  v_au := r.id;
+  select id into v_other from public.song_requests where audio_url = 'https://example.com/a.mp3';
+  perform public.driver_update_request(v_au, 'play');
+  perform public.driver_update_request(v_other, 'play');
+  assert (select status from public.song_requests where id = v_au) = 'played', 'audio link played';
+  r := public.driver_skip((select v::uuid from ctx where k='scride'), 'previous');
+  assert r.id = v_au, 'previous goes back to the audio link';
+end $$;
+select pg_temp.expect_error($q$select public.driver_add_audio_link((select v::uuid from ctx where k='scride'), 'https://www.dropbox.com/scl/fi/x/Song.mp3?raw=1', 'Dup')$q$, 'DUPLICATE_REQUEST');
 
 reset role;
 \echo 'ALL TAXI DJ SQL TESTS PASSED'

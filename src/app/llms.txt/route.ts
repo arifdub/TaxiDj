@@ -13,7 +13,7 @@ Taxi DJ (${SITE_URL}) is a web app that lets passengers choose and share the mus
 
 ## How it works
 - The driver starts a ride in Taxi DJ and shows a QR code (on their phone or a permanent printed card in the car).
-- Passengers scan it with their phone camera – no app download, no account – search for a song (or paste a YouTube, YouTube Music or Spotify link) and tap Add.
+- Passengers scan it with their phone camera – no app download, no account – search for a song (or paste a YouTube, YouTube Music or Spotify link, or a link to their own song file in Google Drive or Dropbox) and tap Add.
 - Songs join the car's music queue; the driver gets an in-app alert and push notification, and the music plays through the Taxi DJ player or the YouTube app via Bluetooth or Apple CarPlay.
 - The driver controls the queue: song limit per passenger, approve or remove songs, end the ride.
 - Local radio stations play when the queue is empty.
@@ -32,7 +32,7 @@ Taxi DJ (${SITE_URL}) is a web app that lets passengers choose and share the mus
 - [Join a ride with a code](${SITE_URL}/join)
 - [Driver help](${SITE_URL}/driver/help)
 
-Taxi DJ is independent and not affiliated with YouTube, Google, Spotify, Apple, Uber, Bolt, Lyft or FREENOW. It never downloads music; songs play from YouTube's official player and apps.
+Taxi DJ is independent and not affiliated with YouTube, Google, Spotify, Apple, Uber, Bolt, Lyft or FREENOW. It never downloads or stores music; songs play from YouTube's official player and apps, and song files play straight from the link they were shared from.
 `;
   return new Response(body, {
     headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" },

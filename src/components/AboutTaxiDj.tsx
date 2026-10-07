@@ -37,6 +37,7 @@ const FEATURES = [
   "Permanent QR card for the car: always opens the ride that's running",
   "Notifications when a passenger adds a song, even with the app closed",
   "Local radio stations for when the queue is empty",
+  "Play your own song files from Google Drive, Dropbox or any web link",
   "Works on iPhone and Android; add it to your Home Screen like an app",
 ];
 
@@ -55,7 +56,7 @@ export const FAQ = [
   },
   {
     q: "Where does the music come from?",
-    a: "Songs play from YouTube using YouTube's official player and apps. Passengers can search for music or paste YouTube, YouTube Music or Spotify song links. Taxi DJ never downloads or copies music.",
+    a: "Songs play from YouTube using YouTube's official player and apps. Passengers can search for music or paste YouTube, YouTube Music or Spotify song links. Drivers and passengers can also add their own song files by pasting a Google Drive, Dropbox or other web link. Taxi DJ never downloads, copies or stores music.",
   },
   {
     q: "Does it work with Apple CarPlay and Bluetooth?",

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Check, Link2, Search } from "lucide-react";
+import { Check, FileAudio, Link2, Search } from "lucide-react";
 import {
+  AudioLinkPanel,
   PastePanel,
   SearchPanel,
   SoundCloudIcon,
@@ -11,18 +12,19 @@ import {
   SpotifyIcon,
   SpotifyPanel,
   TabButton,
+  type AudioLinkPick,
   type SoundCloudResult,
 } from "@/components/music/AddSongPanels";
 import { PassengerHeader } from "@/components/passenger/PassengerFrame";
 import { usePassenger } from "@/components/passenger/PassengerContext";
 import { RequireJoined } from "@/components/passenger/RequireJoined";
 import { Notice } from "@/components/ui";
-import { addSongRequest, addSoundCloudRequest } from "@/lib/api";
+import { addAudioLinkRequest, addSongRequest, addSoundCloudRequest } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { matchSpotifyTrack } from "@/lib/music/client";
 import type { RequestSource, SpotifyTrack, VideoResult } from "@/lib/types";
 
-type Tab = "search" | "soundcloud" | "spotify" | "paste";
+type Tab = "search" | "soundcloud" | "spotify" | "paste" | "file";
 
 export default function MusicPage() {
   return (
@@ -47,6 +49,8 @@ function AddMusic() {
   const [added, setAdded] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
+  // A song-file link pasted into the YouTube box, handed to the File link tab.
+  const [fileLink, setFileLink] = useState("");
 
   useEffect(() => {
     fetch("/api/config")
@@ -72,6 +76,11 @@ function AddMusic() {
     queue
       .filter((q) => q.soundcloud_track_id && (q.status === "pending" || q.status === "queued" || q.status === "playing"))
       .map((q) => q.soundcloud_track_id!),
+  );
+  const audioInQueue = new Set(
+    queue
+      .filter((q) => q.audio_url && (q.status === "pending" || q.status === "queued" || q.status === "playing"))
+      .map((q) => q.audio_url!),
   );
   const spotifyInQueue = new Set(
     queue
@@ -139,6 +148,25 @@ function AddMusic() {
     },
     [ride, refresh],
   );
+  const addAudioLink = useCallback(
+    async (pick: AudioLinkPick) => {
+      if (!ride) return;
+      setAdding(pick.url);
+      setAddError(null);
+      setAdded(null);
+      try {
+        await addAudioLinkRequest({ rideId: ride.id, ...pick });
+        setAdded(pick.title);
+        await refresh();
+      } catch (err) {
+        setAddError(friendlyError(err));
+        refresh();
+      } finally {
+        setAdding(null);
+      }
+    },
+    [ride, refresh],
+  );
   const addSpotify = (track: SpotifyTrack) =>
     add(() => matchSpotifyTrack(track), "youtube", { spotifyTrackId: track.spotifyId, key: track.spotifyId });
 
@@ -194,8 +222,8 @@ function AddMusic() {
       <div
         role="tablist"
         aria-label="How to add music"
-        // 2 or 4 tabs: two per row; 3 tabs: one row.
-        className={`mt-5 grid ${spotifyConfigured !== soundCloudConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}
+        // 4 tabs: two per row; 3 or 5: three per row.
+        className={`mt-5 grid ${spotifyConfigured === soundCloudConfigured ? "grid-cols-3" : "grid-cols-2"} gap-2`}
       >
         <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="size-4" />}>
           Music
@@ -213,10 +241,22 @@ function AddMusic() {
         <TabButton active={tab === "paste"} onClick={() => setTab("paste")} icon={<Link2 className="size-4" />}>
           Paste link
         </TabButton>
+        <TabButton active={tab === "file"} onClick={() => setTab("file")} icon={<FileAudio className="size-4" />}>
+          File link
+        </TabButton>
       </div>
 
       <div className="mt-4">
-        {tab === "soundcloud" ? (
+        {tab === "file" ? (
+          <AudioLinkPanel
+            key={fileLink}
+            initialValue={fileLink}
+            onAdd={addAudioLink}
+            adding={adding}
+            inQueue={audioInQueue}
+            disabled={limitReached}
+          />
+        ) : tab === "soundcloud" ? (
           <SoundCloudPanel
             onAdd={addSoundCloud}
             adding={adding}
@@ -256,7 +296,16 @@ function AddMusic() {
             />
           )
         ) : (
-          <PastePanel onAdd={add} adding={adding} inQueue={inQueue} disabled={limitReached} />
+          <PastePanel
+            onAdd={add}
+            adding={adding}
+            inQueue={inQueue}
+            disabled={limitReached}
+            onAudioLink={(link) => {
+              setFileLink(link);
+              setTab("file");
+            }}
+          />
         )}
       </div>
     </main>

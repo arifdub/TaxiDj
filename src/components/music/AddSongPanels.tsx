@@ -5,11 +5,12 @@
 // shows them on a white card.
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Music, Plus, Search, X } from "lucide-react";
+import { Check, FileAudio, Music, Plus, Search, X } from "lucide-react";
 import { Button, Notice, SongSkeleton, Spinner, Thumbnail, YouTubeIcon } from "@/components/ui";
 import { friendlyError } from "@/lib/errors";
 import { formatDuration } from "@/lib/format";
 import type { RequestSource, SpotifyTrack, VideoResult } from "@/lib/types";
+import { AUDIO_LINK_MESSAGES, parseAudioLink } from "@/lib/audio/link";
 import { looksLikeSpotifyLink, parseSpotifyTrackLink } from "@/lib/spotify/parse";
 import { parseYouTubeUrl, type ParseError } from "@/lib/youtube/parse";
 
@@ -214,11 +215,14 @@ export function PastePanel({
   adding,
   inQueue,
   disabled,
+  onAudioLink,
 }: {
   onAdd: (v: VideoResult, source: RequestSource) => void;
   adding: string | null;
   inQueue: Set<string>;
   disabled: boolean;
+  /** A link to a song file was pasted here: offer to add it as a file instead. */
+  onAudioLink?: (link: string) => void;
 }) {
   const [value, setValue] = useState("");
   // Result of the metadata lookup, keyed by the video it belongs to.
@@ -233,6 +237,7 @@ export function PastePanel({
   const loading = Boolean(videoId) && !current;
   const preview = current?.preview ?? null;
   const error = parsed.ok ? (current?.error ?? null) : parsed.error === "EMPTY" ? null : PARSE_MESSAGES[parsed.error];
+  const audioLink = onAudioLink && !parsed.ok && parsed.error === "NOT_YOUTUBE" && "url" in parseAudioLink(value);
 
   useEffect(() => {
     if (!videoId) return;
@@ -317,10 +322,19 @@ export function PastePanel({
         <p className="mt-1 text-xs text-zinc-500">Works with YouTube and YouTube Music links.</p>
       </div>
 
-      {error && (
-        <p id="url-error" role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
-          {error}
-        </p>
+      {audioLink ? (
+        <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 ring-1 ring-amber-200">
+          <p className="font-semibold">That isn&apos;t a YouTube link. Is it a song file (Google Drive, Dropbox, MP3)?</p>
+          <Button size="md" className="mt-3 w-full" onClick={() => onAudioLink(value)}>
+            <FileAudio className="size-4" aria-hidden /> Add it as a song file
+          </Button>
+        </div>
+      ) : (
+        error && (
+          <p id="url-error" role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+            {error}
+          </p>
+        )
       )}
 
       {loading && <SongSkeleton tone="light" count={1} />}
@@ -804,6 +818,195 @@ export function SoundCloudPanel({
           <p className="py-8 text-center text-zinc-500">Search SoundCloud for any song or artist.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------- Audio file link ----
+
+/** An audio file link ready to add to the queue. */
+export interface AudioLinkPick {
+  url: string;
+  title: string;
+  artist: string;
+  durationSeconds: number | null;
+}
+
+type FileCheck = { url: string; state: "ok"; duration: number | null } | { url: string; state: "failed" };
+
+/**
+ * "File link" tab: paste a share link to a song file (Google Drive, Dropbox
+ * or any https audio file). The driver's phone plays it straight from that
+ * address in Taxi DJ's audio player; nothing is uploaded or stored.
+ */
+export function AudioLinkPanel({
+  onAdd,
+  adding,
+  inQueue,
+  disabled,
+  initialValue = "",
+}: {
+  onAdd: (pick: AudioLinkPick) => void;
+  adding: string | null;
+  inQueue: Set<string>;
+  disabled: boolean;
+  initialValue?: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const [title, setTitle] = useState<{ url: string; text: string } | null>(null);
+  const [check, setCheck] = useState<FileCheck | null>(null);
+
+  const parsed = value.trim() ? parseAudioLink(value) : null;
+  const link = parsed && "url" in parsed ? parsed : null;
+  const error = parsed && "error" in parsed ? AUDIO_LINK_MESSAGES[parsed.error] : null;
+  const name = title && title.url === link?.url ? title.text : (link?.titleGuess ?? "");
+  const fileCheck = check && check.url === link?.url ? check : null;
+
+  // Peek at the file (length only) so a link that isn't a public audio file
+  // is caught now rather than in the car. Some phones skip this; that's fine.
+  const linkUrl = link?.url ?? null;
+  useEffect(() => {
+    if (!linkUrl) return;
+    const a = new Audio();
+    a.preload = "metadata";
+    a.muted = true;
+    const done = (r: FileCheck) => {
+      setCheck(r);
+      a.removeAttribute("src");
+      a.load();
+    };
+    a.addEventListener("loadedmetadata", () =>
+      done({ url: linkUrl, state: "ok", duration: Number.isFinite(a.duration) ? Math.round(a.duration) : null }),
+    );
+    a.addEventListener("error", () => done({ url: linkUrl, state: "failed" }));
+    a.src = linkUrl;
+    return () => {
+      a.removeAttribute("src");
+    };
+  }, [linkUrl]);
+
+  async function pasteFromClipboard() {
+    try {
+      setValue(await navigator.clipboard.readText());
+    } catch {
+      // Clipboard permission denied: the user can paste manually.
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="mb-1 flex items-center gap-2 text-lg font-black">
+          <FileAudio className="size-5 text-taxi-dark" aria-hidden /> Play a song file
+        </h2>
+        <p className="text-sm text-zinc-500">
+          Paste a share link to a song file in <strong>Google Drive</strong> or <strong>Dropbox</strong>, or any link to an MP3 or
+          M4A file. Share the file as &ldquo;Anyone with the link&rdquo;.
+        </p>
+      </div>
+      <div>
+        <label htmlFor="audio-url" className="text-sm font-bold text-zinc-700">
+          Song file link
+        </label>
+        <div className="relative mt-2">
+          <input
+            id="audio-url"
+            type="url"
+            inputMode="url"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="https://drive.google.com/file/d/…"
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-invalid={Boolean(error) || undefined}
+            aria-describedby={error ? "audio-url-error" : undefined}
+            className="h-14 w-full rounded-2xl border-2 border-zinc-200 bg-zinc-50 pl-4 pr-12 text-base focus:border-taxi-dark focus:bg-white focus:outline-none"
+          />
+          {value && (
+            <button
+              type="button"
+              onClick={() => setValue("")}
+              aria-label="Clear link"
+              className="absolute right-1.5 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100"
+            >
+              <X className="size-5" aria-hidden />
+            </button>
+          )}
+        </div>
+        {!value && (
+          <button type="button" onClick={pasteFromClipboard} className="mt-2 min-h-11 text-sm font-bold text-queue">
+            Paste from clipboard
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p id="audio-url-error" role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+          {error}
+        </p>
+      )}
+
+      {link && (
+        <div className="space-y-3 rounded-3xl border border-zinc-200 p-3">
+          <div className="flex items-center gap-3">
+            <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-ink text-taxi">
+              <FileAudio className="size-7" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold">{link.sourceLabel}</p>
+              <p className="text-xs text-zinc-500">
+                {fileCheck?.state === "ok"
+                  ? `Audio file found${fileCheck.duration ? ` · ${formatDuration(fileCheck.duration)}` : ""}`
+                  : fileCheck?.state === "failed"
+                    ? "Couldn't open it as audio here"
+                    : "Plays in Taxi DJ, also in the background"}
+              </p>
+            </div>
+          </div>
+          {fileCheck?.state === "failed" && (
+            <Notice tone="info">
+              This phone couldn&apos;t play that link. Check it&apos;s a song file (not a folder) and shared as &ldquo;Anyone
+              with the link&rdquo;. You can still add it.
+            </Notice>
+          )}
+          <div>
+            <label htmlFor="audio-title" className="text-sm font-bold text-zinc-700">
+              Song name
+            </label>
+            <input
+              id="audio-title"
+              value={name}
+              onChange={(e) => setTitle({ url: link.url, text: e.target.value })}
+              placeholder="e.g. My road trip mix"
+              maxLength={200}
+              autoComplete="off"
+              className="mt-2 h-12 w-full rounded-2xl border-2 border-zinc-200 bg-zinc-50 px-4 text-base focus:border-taxi-dark focus:bg-white focus:outline-none"
+            />
+          </div>
+          {inQueue.has(link.url) ? (
+            <p className="rounded-2xl bg-zinc-100 py-4 text-center font-bold text-zinc-600">Already in the queue</p>
+          ) : (
+            <Button
+              size="xl"
+              className="w-full"
+              onClick={() =>
+                onAdd({
+                  url: link.url,
+                  title: name.trim() || (link.sourceLabel === "Google Drive" ? "Google Drive audio" : "Audio file"),
+                  artist: link.sourceLabel,
+                  durationSeconds: fileCheck?.state === "ok" ? fileCheck.duration : null,
+                })
+              }
+              loading={adding === link.url}
+              disabled={disabled}
+            >
+              ADD TO QUEUE
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

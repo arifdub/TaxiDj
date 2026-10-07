@@ -17,9 +17,10 @@ import { ErrorBar } from "@/components/driver/ErrorBar";
 import { PlayQueueInYouTube } from "@/components/driver/PlayQueueInYouTube";
 import { usePlayer } from "@/components/driver/PlayerProvider";
 import { useDriverRide } from "@/components/driver/RideContext";
-import { YouTubeIcon } from "@/components/ui";
+import { SourceIcon } from "@/components/music/SourceIcon";
 import { formatDuration } from "@/lib/format";
 import { lastPlayed, nextToPlay, nowPlaying, upNext } from "@/lib/queue";
+import { sourceName, sourceUrl } from "@/lib/sources";
 
 /**
  * Full player controls for in-app (embedded YouTube) playback. The video
@@ -31,6 +32,7 @@ export function EmbeddedPlayerControls() {
   const { ride, queue, skip, act } = useDriverRide();
   const current = nowPlaying(queue);
   const next = nextToPlay(queue);
+  const shown = current ?? next;
   const previous = lastPlayed(queue);
   const waitingCount = upNext(queue).length;
   const playing = player.status === "playing" || player.status === "buffering";
@@ -67,7 +69,7 @@ export function EmbeddedPlayerControls() {
           {current?.title ?? next?.title ?? "Nothing playing"}
         </h1>
         <p className="mt-1 flex items-center justify-center gap-1.5 text-lg text-mist">
-          <YouTubeIcon className="h-4 w-auto" /> {(current ?? next)?.artist ?? "YouTube"}
+          {shown && <SourceIcon song={shown} size="md" />} {shown ? (shown.artist ?? sourceName(shown)) : "YouTube"}
         </p>
         {current?.passenger && (
           <p className="mt-1 text-sm font-semibold text-taxi">Requested by {current.passenger.nickname}</p>
@@ -165,13 +167,13 @@ export function EmbeddedPlayerControls() {
       <div className="mt-6 grid w-full max-w-md grid-cols-2 gap-3">
         {current ? (
           <a
-            href={(current.provider === "soundcloud" ? current.soundcloud_url : current.youtube_url) ?? "#"}
+            href={sourceUrl(current)}
             target="_blank"
             rel="noopener noreferrer"
             onClick={player.pause}
             className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-line bg-night-3 text-sm font-bold"
           >
-            <ExternalLink className="size-5" aria-hidden /> {current.provider === "soundcloud" ? "Open in SoundCloud" : "Open in YouTube app"}
+            <ExternalLink className="size-5" aria-hidden /> {current.provider === "audio" ? "Open the file" : current.provider === "soundcloud" ? "Open in SoundCloud" : "Open in YouTube app"}
           </a>
         ) : (
           <span className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-line bg-night-3 text-sm font-bold opacity-40">

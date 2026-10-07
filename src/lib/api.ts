@@ -132,6 +132,25 @@ const soundCloudParams = (req: SoundCloudSongInput) => ({
   p_artwork_url: req.artworkUrl,
 });
 
+export interface AudioLinkInput {
+  rideId: string;
+  url: string;
+  title: string;
+  artist: string | null;
+  durationSeconds?: number | null;
+}
+
+const audioLinkParams = (req: AudioLinkInput) => ({
+  p_ride_id: req.rideId,
+  p_url: req.url,
+  p_title: req.title,
+  p_artist: req.artist,
+  p_duration_seconds: req.durationSeconds ?? null,
+});
+
+export const driverAddAudioLink = (req: AudioLinkInput) =>
+  rpc<SongRequest>("driver_add_audio_link", audioLinkParams(req));
+
 export const driverAddSoundCloudSong = (req: SoundCloudSongInput) =>
   rpc<SongRequest>("driver_add_soundcloud_song", soundCloudParams(req));
 
@@ -245,6 +264,12 @@ export const addSongRequest = (req: {
 
 export const addSoundCloudRequest = (req: SoundCloudSongInput) =>
   rpc<SongRequest>("add_soundcloud_request", soundCloudParams(req)).then((song) => {
+    void notifyDriverOfRequest(song.id);
+    return song;
+  });
+
+export const addAudioLinkRequest = (req: AudioLinkInput) =>
+  rpc<SongRequest>("add_audio_link_request", audioLinkParams(req)).then((song) => {
     void notifyDriverOfRequest(song.id);
     return song;
   });
